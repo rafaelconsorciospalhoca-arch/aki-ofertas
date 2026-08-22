@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getOfferBySlug } from '@/lib/offers'
 
@@ -29,7 +30,9 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
       </div>
 
       <div className="flex flex-col gap-3 p-4">
-        <p className="text-sm text-neutral-500">{offer.business.name}</p>
+        <Link href={`/loja/${offer.business.slug}`} className="text-sm text-neutral-500 underline">
+          {offer.business.name}
+        </Link>
         <h1 className="text-xl font-bold text-neutral-900">{offer.title}</h1>
         {offer.description && <p className="text-sm text-neutral-600">{offer.description}</p>}
 
