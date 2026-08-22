@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CONSUMER
+  MERCHANT
+  ADMIN
+}
+
+enum BusinessStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum OfferStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum CouponStatus {
+  GENERATED
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(CONSUMER)
+  city         String?
+  state        String?
+  createdAt    DateTime @default(now())
+
+  businesses Business[]
+  coupons    Coupon[]
+  favorites  Favorite[]
+
+  @@map("users")
+}
+
+model City {
+  id         String  @id @default(cuid())
+  name       String
+  state      String
+  active     Boolean @default(true)
+  comingSoon Boolean @default(false)
+
+  @@unique([name, state])
+  @@map("cities")
+}
+
+model Category {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  icon   String
+  order  Int     @default(0)
+  active Boolean @default(true)
+
+  businesses Business[]
+  offers     Offer[]
+
+  @@map("categories")
+}
+
+model Business {
+  id           String         @id @default(cuid())
+  ownerId      String
+  owner        User           @relation(fields: [ownerId], references: [id])
+  name         String
+  legalName    String?
+  document     String?
+  categoryId   String
+  category     Category       @relation(fields: [categoryId], references: [id])
+  phone        String?
+  whatsapp     String?
+  email        String?
+  instagram    String?
+  website      String?
+  address      String
+  number       String?
+  neighborhood String?
+  city         String
+  state        String
+  zip          String?
+  lat          Float
+  lng          Float
+  description  String?
+  logoUrl      String?
+  coverUrl     String?
+  status       BusinessStatus @default(PENDING)
+  planId       String?
+  plan         Plan?          @relation(fields: [planId], references: [id])
+  createdAt    DateTime       @default(now())
+  slug         String         @unique
+
+  hours           BusinessHours[]
+  offers          Offer[]
+  coupons         Coupon[]
+  favorites       Favorite[]
+  subscriptions   Subscription[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@map("businesses")
+}
+
+model BusinessHours {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  weekday    Int
+  opensAt    String?
+  closesAt   String?
+  closed     Boolean  @default(false)
+
+  @@map("business_hours")
+}
+
+model Offer {
+  id                String      @id @default(cuid())
+  businessId        String
+  business          Business    @relation(fields: [businessId], references: [id])
+  title             String
+  description       String?
+  imageUrl          String?
+  originalPrice     Int
+  discountPrice     Int
+  discountPercent   Int
+  categoryId        String
+  category          Category    @relation(fields: [categoryId], references: [id])
+  quantityAvailable Int?
+  startDate         DateTime
+  endDate           DateTime
+  isFlash           Boolean     @default(false)
+  status            OfferStatus @default(ACTIVE)
+  createdAt         DateTime    @default(now())
+  slug              String      @unique
+
+  coupons   Coupon[]
+  favorites Favorite[]
+
+  @@map("offers")
+}
+
+model Coupon {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  offerId     String
+  offer       Offer        @relation(fields: [offerId], references: [id])
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  status      CouponStatus @default(GENERATED)
+  generatedAt DateTime     @default(now())
+  usedAt      DateTime?
+  expiresAt   DateTime
+
+  @@map("coupons")
+}
+
+model Favorite {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id])
+  offerId    String?
+  offer      Offer?    @relation(fields: [offerId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, businessId, offerId])
+  @@map("favorites")
+}
+
+model Plan {
+  id                String  @id @default(cuid())
+  name              String  @unique
+  priceCents        Int
+  maxOffersPerMonth Int
+  hasFlashOffers    Boolean @default(false)
+  hasFullMetrics    Boolean @default(false)
+
+  businesses    Business[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id])
+  planId     String
+  plan       Plan      @relation(fields: [planId], references: [id])
+  status     String    @default("ACTIVE")
+  startedAt  DateTime  @default(now())
+  renewsAt   DateTime?
+
+  @@map("subscriptions")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  offerId    String?
+  type       String
+  createdAt  DateTime @default(now())
+
+  @@map("analytics_events")
+}
