@@ -18,7 +18,7 @@ export function StoreTabs({
           type="button"
           onClick={() => setTab('sobre')}
           className={`border-b-2 py-2 text-sm font-bold ${
-            tab === 'sobre' ? 'border-emerald-600 text-neutral-900' : 'border-transparent text-neutral-400'
+            tab === 'sobre' ? 'border-brand-green text-neutral-900' : 'border-transparent text-neutral-400'
           }`}
         >
           Sobre
@@ -27,7 +27,7 @@ export function StoreTabs({
           type="button"
           onClick={() => setTab('ofertas')}
           className={`border-b-2 py-2 text-sm font-bold ${
-            tab === 'ofertas' ? 'border-emerald-600 text-neutral-900' : 'border-transparent text-neutral-400'
+            tab === 'ofertas' ? 'border-brand-green text-neutral-900' : 'border-transparent text-neutral-400'
           }`}
         >
           Ofertas

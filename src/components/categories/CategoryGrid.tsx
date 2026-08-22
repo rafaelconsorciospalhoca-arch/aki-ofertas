@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CategoryIcon } from './CategoryIcon'
 
 export function CategoryGrid({
   categories,
@@ -6,17 +7,15 @@ export function CategoryGrid({
   categories: { id: string; name: string; icon: string }[]
 }) {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-4 gap-x-2 gap-y-4">
       {categories.map((category) => (
         <Link
           key={category.id}
           href={`/ofertas?categoria=${category.id}`}
-          className="flex flex-col items-center gap-1 text-center"
+          className="flex flex-col items-center gap-1.5 text-center"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-100 text-sm">
-            {category.icon.slice(0, 1).toUpperCase()}
-          </span>
-          <span className="text-[10px] leading-tight text-neutral-600">{category.name}</span>
+          <CategoryIcon icon={category.icon} className="h-11 w-11" />
+          <span className="text-[11px] font-medium leading-tight text-neutral-600">{category.name}</span>
         </Link>
       ))}
     </div>

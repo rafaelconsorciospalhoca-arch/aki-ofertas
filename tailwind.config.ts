@@ -11,6 +11,15 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        brand: {
+          navy: "#0B1B33",
+          "navy-dark": "#071022",
+          green: "#17A94E",
+          "green-light": "#22C55E",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
     },
   },

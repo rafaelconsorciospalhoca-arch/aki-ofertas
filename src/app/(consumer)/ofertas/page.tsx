@@ -38,11 +38,11 @@ export default async function OfertasPage({
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-lg font-bold text-neutral-900">Ofertas perto de você</h1>
 
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
         <Link
           href={buildFilterHref(undefined, radiusKm)}
-          className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
-            !searchParams.categoria ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-600'
+          className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+            !searchParams.categoria ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-600'
           }`}
         >
           Todas
@@ -51,8 +51,8 @@ export default async function OfertasPage({
           <Link
             key={category.id}
             href={buildFilterHref(category.id, radiusKm)}
-            className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
-              searchParams.categoria === category.id ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-600'
+            className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+              searchParams.categoria === category.id ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-600'
             }`}
           >
             {category.name}
@@ -61,11 +61,11 @@ export default async function OfertasPage({
       </div>
 
       {location && (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
           <Link
             href={buildFilterHref(searchParams.categoria, undefined)}
-            className={`flex-shrink-0 rounded-full px-3 py-1 text-xs ${
-              !radiusKm ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
+            className={`flex-shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
+              !radiusKm ? 'bg-brand-navy text-white' : 'bg-neutral-100 text-neutral-600'
             }`}
           >
             Toda cidade
@@ -74,8 +74,8 @@ export default async function OfertasPage({
             <Link
               key={km}
               href={buildFilterHref(searchParams.categoria, km)}
-              className={`flex-shrink-0 rounded-full px-3 py-1 text-xs ${
-                radiusKm === km ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
+              className={`flex-shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
+                radiusKm === km ? 'bg-brand-navy text-white' : 'bg-neutral-100 text-neutral-600'
               }`}
             >
               Até {km} km
@@ -85,7 +85,12 @@ export default async function OfertasPage({
       )}
 
       {offers.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nenhuma oferta encontrada com esses filtros.</p>
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-neutral-200 py-10 text-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-8 w-8 text-neutral-300">
+            <path d="M20.6 12L12 20.6 3.4 12 12 3.4z" />
+          </svg>
+          <p className="text-sm text-neutral-500">Nenhuma oferta encontrada com esses filtros.</p>
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
           {offers.map((offer) => (
