@@ -16,7 +16,7 @@ describe('getActiveCategories', () => {
 
   it('queries only active categories ordered by their order field', async () => {
     vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'cat-1', name: 'Restaurantes e Lanchonetes', icon: 'utensils', order: 1, active: true },
+      { id: 'cat-1', name: 'Restaurantes e Lanchonetes', icon: 'utensils', order: 1 },
     ] as never)
 
     const result = await getActiveCategories()
@@ -24,9 +24,10 @@ describe('getActiveCategories', () => {
     expect(prisma.category.findMany).toHaveBeenCalledWith({
       where: { active: true },
       orderBy: { order: 'asc' },
+      select: { id: true, name: true, icon: true, order: true },
     })
     expect(result).toEqual([
-      { id: 'cat-1', name: 'Restaurantes e Lanchonetes', icon: 'utensils', order: 1, active: true },
+      { id: 'cat-1', name: 'Restaurantes e Lanchonetes', icon: 'utensils', order: 1 },
     ])
   })
 })
@@ -38,7 +39,7 @@ describe('getActiveCities', () => {
 
   it('queries only active cities ordered by name', async () => {
     vi.mocked(prisma.city.findMany).mockResolvedValue([
-      { id: 'city-1', name: 'Marmeleiro', state: 'PR', active: true, comingSoon: false },
+      { id: 'city-1', name: 'Marmeleiro', state: 'PR' },
     ] as never)
 
     const result = await getActiveCities()
@@ -46,9 +47,10 @@ describe('getActiveCities', () => {
     expect(prisma.city.findMany).toHaveBeenCalledWith({
       where: { active: true },
       orderBy: { name: 'asc' },
+      select: { id: true, name: true, state: true },
     })
     expect(result).toEqual([
-      { id: 'city-1', name: 'Marmeleiro', state: 'PR', active: true, comingSoon: false },
+      { id: 'city-1', name: 'Marmeleiro', state: 'PR' },
     ])
   })
 })
