@@ -8,8 +8,9 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489 }
-const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733 }
+const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE' }
+const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733, status: 'ACTIVE' }
+const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING' }
 
 const nearOffer = {
   id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', imageUrl: null,
@@ -20,6 +21,27 @@ const farOffer = {
   id: 'offer-2', slug: 'pizza-grande', title: 'Pizza Grande', imageUrl: null,
   originalPrice: 5990, discountPrice: 4490, discountPercent: 25, createdAt: new Date('2026-01-02'),
   business: farBusiness,
+}
+const pendingOffer = {
+  id: 'offer-3', slug: 'sushi-combo', title: 'Combo Sushi', imageUrl: null,
+  originalPrice: 6990, discountPrice: 4990, discountPercent: 28, createdAt: new Date('2026-01-03'),
+  business: pendingBusiness,
+}
+
+const allOffers = [nearOffer, farOffer, pendingOffer]
+
+// Simulates Prisma applying the `where` clause server-side, so tests can prove
+// the query actually excludes non-ACTIVE businesses / non-matching cities end-to-end.
+function fakeFindMany(args: { where: { business: { status: string; city?: string; state?: string } } }) {
+  const { where } = args
+  return Promise.resolve(
+    allOffers.filter((offer) => {
+      if (offer.business.status !== where.business.status) return false
+      if (where.business.city && offer.business.city !== where.business.city) return false
+      if (where.business.state && offer.business.state !== where.business.state) return false
+      return true
+    }),
+  )
 }
 
 describe('toOfferListItem', () => {
@@ -62,7 +84,7 @@ describe('getFeaturedOffers', () => {
 
     expect(prisma.offer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE', business: { status: 'ACTIVE' } },
         orderBy: { createdAt: 'desc' },
       }),
     )
@@ -76,6 +98,23 @@ describe('getFeaturedOffers', () => {
     const result = await getFeaturedOffers({ location: null, limit: 1 })
 
     expect(result).toHaveLength(1)
+  })
+
+  it('excludes offers whose business is not ACTIVE, even though the offer itself is ACTIVE', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getFeaturedOffers({ location: null, limit: 10 })
+
+    expect(result.map((o) => o.slug)).not.toContain('sushi-combo')
+    expect(result.map((o) => o.slug).sort()).toEqual(['combo-burguer', 'pizza-grande'])
+  })
+
+  it('filters to the given city when city is provided', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getFeaturedOffers({ location: null, city: { name: 'Marmeleiro', state: 'PR' }, limit: 10 })
+
+    expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 })
 
@@ -91,7 +130,7 @@ describe('getOffersList', () => {
 
     expect(prisma.offer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'ACTIVE', categoryId: 'cat-1' },
+        where: { status: 'ACTIVE', categoryId: 'cat-1', business: { status: 'ACTIVE' } },
       }),
     )
   })
@@ -129,6 +168,23 @@ describe('getOffersList', () => {
     // as "no filter" (the previous truthiness-check bug).
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
+
+  it('excludes offers whose business is not ACTIVE, even though the offer itself is ACTIVE', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getOffersList({ location: null })
+
+    expect(result.map((o) => o.slug)).not.toContain('sushi-combo')
+    expect(result.map((o) => o.slug).sort()).toEqual(['combo-burguer', 'pizza-grande'])
+  })
+
+  it('filters to the given city when city is provided', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getOffersList({ location: null, city: { name: 'Marmeleiro', state: 'PR' } })
+
+    expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
+  })
 })
 
 describe('getOfferBySlug', () => {
@@ -144,12 +200,25 @@ describe('getOfferBySlug', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null when the found offer\'s business is not ACTIVE', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue({
+      id: 'offer-3', slug: 'sushi-combo', title: 'Combo Sushi', description: null,
+      imageUrl: null, originalPrice: 6990, discountPrice: 4990, discountPercent: 28,
+      quantityAvailable: null, startDate: new Date('2026-01-01'), endDate: new Date('2026-02-01'),
+      business: { name: 'Pending Sushi', slug: 'pending-sushi', whatsapp: null, city: 'Marmeleiro', state: 'PR', status: 'PENDING' },
+    } as never)
+
+    const result = await getOfferBySlug('sushi-combo')
+
+    expect(result).toBeNull()
+  })
+
   it('maps the offer and its business when found', async () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue({
       id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', description: 'Pão, carne e queijo.',
       imageUrl: null, originalPrice: 4290, discountPrice: 2990, discountPercent: 30,
       quantityAvailable: null, startDate: new Date('2026-01-01'), endDate: new Date('2026-02-01'),
-      business: { name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR' },
+      business: { name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE' },
     } as never)
 
     const result = await getOfferBySlug('combo-burguer')

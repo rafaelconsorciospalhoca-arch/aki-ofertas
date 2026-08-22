@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import { distanceKm, formatDistance } from '@/lib/geo'
-import type { Coordinates } from '@/lib/location'
+import type { Coordinates, CityCookie } from '@/lib/location'
 
 export type OfferRow = {
   id: string
@@ -59,9 +59,19 @@ export function toOfferListItem(
   }
 }
 
-export async function getFeaturedOffers(input: { location: Coordinates | null; limit: number }): Promise<OfferListItem[]> {
+export async function getFeaturedOffers(input: {
+  location: Coordinates | null
+  city?: CityCookie | null
+  limit: number
+}): Promise<OfferListItem[]> {
   const rows = await prisma.offer.findMany({
-    where: { status: 'ACTIVE' },
+    where: {
+      status: 'ACTIVE',
+      business: {
+        status: 'ACTIVE',
+        ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
+      },
+    },
     orderBy: { createdAt: 'desc' },
     include: { business: true },
   })
@@ -78,12 +88,17 @@ export async function getFeaturedOffers(input: { location: Coordinates | null; l
 export async function getOffersList(input: {
   categoryId?: string
   location: Coordinates | null
+  city?: CityCookie | null
   radiusKm?: number
 }): Promise<OfferListItem[]> {
   const rows = await prisma.offer.findMany({
     where: {
       status: 'ACTIVE',
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+      business: {
+        status: 'ACTIVE',
+        ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
+      },
     },
     orderBy: { createdAt: 'desc' },
     include: { business: true },
@@ -130,6 +145,7 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
   })
 
   if (!row) return null
+  if (row.business.status !== 'ACTIVE') return null
 
   return {
     id: row.id,

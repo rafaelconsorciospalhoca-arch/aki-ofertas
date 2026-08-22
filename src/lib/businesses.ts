@@ -26,6 +26,7 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessDetail | 
   })
 
   if (!row) return null
+  if (row.status !== 'ACTIVE') return null
 
   const businessRow = { id: row.id, name: row.name, slug: row.slug, city: row.city, state: row.state, lat: row.lat, lng: row.lng }
 

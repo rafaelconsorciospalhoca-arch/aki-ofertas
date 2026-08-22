@@ -21,11 +21,25 @@ describe('getBusinessBySlug', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null when the business status is not ACTIVE', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', slug: 'pending-business', name: 'Pending Business', description: null,
+      logoUrl: null, coverUrl: null, city: 'Marmeleiro', state: 'PR', phone: null,
+      whatsapp: null, lat: -25.9006, lng: -53.0489, status: 'PENDING',
+      category: { name: 'Restaurantes e Lanchonetes' },
+      offers: [],
+    } as never)
+
+    const result = await getBusinessBySlug('pending-business')
+
+    expect(result).toBeNull()
+  })
+
   it('maps the business and its active offers when found', async () => {
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', slug: 'big-burger', name: 'Big Burger', description: 'Hambúrgueres artesanais.',
       logoUrl: null, coverUrl: null, city: 'Marmeleiro', state: 'PR', phone: null,
-      whatsapp: '5546999990000', lat: -25.9006, lng: -53.0489,
+      whatsapp: '5546999990000', lat: -25.9006, lng: -53.0489, status: 'ACTIVE',
       category: { name: 'Restaurantes e Lanchonetes' },
       offers: [
         {
