@@ -1,15 +1,17 @@
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { getActiveCategories } from '@/lib/categories'
 import { getFeaturedOffers } from '@/lib/offers'
-import { GEO_COOKIE, parseGeoCookie } from '@/lib/location'
+import { GEO_COOKIE, parseGeoCookie, CITY_COOKIE, parseCityCookie } from '@/lib/location'
 import { CategoryGrid } from '@/components/categories/CategoryGrid'
 import { OfferCard } from '@/components/offers/OfferCard'
 
 export default async function HomePage() {
   const location = parseGeoCookie(cookies().get(GEO_COOKIE)?.value)
+  const city = location ? null : parseCityCookie(cookies().get(CITY_COOKIE)?.value)
   const [categories, offers] = await Promise.all([
     getActiveCategories(),
-    getFeaturedOffers({ location, limit: 10 }),
+    getFeaturedOffers({ location, city, limit: 10 }),
   ])
 
   return (
@@ -18,6 +20,15 @@ export default async function HomePage() {
         <h1 className="text-lg font-bold text-neutral-900">Aki Ofertas</h1>
         <p className="text-sm text-neutral-500">O que você precisa, pertinho de você.</p>
       </div>
+
+      {!location && !city && (
+        <Link
+          href="/onboarding"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+        >
+          📍 Ative sua localização para ver ofertas perto de você
+        </Link>
+      )}
 
       <CategoryGrid categories={categories} />
 

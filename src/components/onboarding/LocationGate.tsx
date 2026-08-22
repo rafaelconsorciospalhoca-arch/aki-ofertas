@@ -68,7 +68,7 @@ export function LocationGate({
         >
           <option value="">Ou escolha sua cidade</option>
           {cities.map((city) => (
-            <option key={city.id} value={city.name}>
+            <option key={city.id} value={`${city.name}|${city.state}`}>
               {city.name} - {city.state}
             </option>
           ))}

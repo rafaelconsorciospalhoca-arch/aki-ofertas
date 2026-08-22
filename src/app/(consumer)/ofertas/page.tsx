@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { getActiveCategories } from '@/lib/categories'
 import { getOffersList } from '@/lib/offers'
-import { GEO_COOKIE, parseGeoCookie } from '@/lib/location'
+import { GEO_COOKIE, parseGeoCookie, CITY_COOKIE, parseCityCookie } from '@/lib/location'
 import { OfferCard } from '@/components/offers/OfferCard'
 
 const RADIUS_OPTIONS = [1, 3, 5, 10, 20]
@@ -21,6 +21,7 @@ export default async function OfertasPage({
   searchParams: { categoria?: string; raio?: string }
 }) {
   const location = parseGeoCookie(cookies().get(GEO_COOKIE)?.value)
+  const city = location ? null : parseCityCookie(cookies().get(CITY_COOKIE)?.value)
   const radiusKm = searchParams.raio ? Number(searchParams.raio) : undefined
 
   const [categories, offers] = await Promise.all([
@@ -28,6 +29,7 @@ export default async function OfertasPage({
     getOffersList({
       categoryId: searchParams.categoria,
       location,
+      city,
       radiusKm: Number.isFinite(radiusKm) ? radiusKm : undefined,
     }),
   ])
