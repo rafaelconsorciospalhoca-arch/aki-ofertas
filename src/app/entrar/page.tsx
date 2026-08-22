@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function EntrarPage() {
+function EntrarForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -23,7 +23,9 @@ export default function EntrarPage() {
       setError('E-mail ou senha incorretos.')
       return
     }
-    router.push(searchParams.get('callbackUrl') ?? '/')
+    const raw = searchParams.get('callbackUrl')
+    const target = raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/'
+    router.push(target)
   }
 
   return (
@@ -55,5 +57,13 @@ export default function EntrarPage() {
         </button>
       </form>
     </div>
+  )
+}
+
+export default function EntrarPage() {
+  return (
+    <Suspense fallback={null}>
+      <EntrarForm />
+    </Suspense>
   )
 }
