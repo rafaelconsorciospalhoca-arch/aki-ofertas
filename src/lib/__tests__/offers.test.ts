@@ -114,6 +114,21 @@ describe('getOffersList', () => {
 
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer', 'pizza-grande'])
   })
+
+  it('applies radiusKm: 0 as a real filter instead of disabling filtering (only exact-location matches survive)', async () => {
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([farOffer, nearOffer] as never)
+
+    const result = await getOffersList({
+      location: { lat: -25.9006, lng: -53.0489 },
+      radiusKm: 0,
+    })
+
+    // nearOffer's business sits at the exact same coordinates as the search
+    // location, so its distance is exactly 0km, which satisfies `<= 0`.
+    // farOffer is filtered out. This proves radiusKm: 0 is no longer treated
+    // as "no filter" (the previous truthiness-check bug).
+    expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
+  })
 })
 
 describe('getOfferBySlug', () => {

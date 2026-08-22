@@ -95,7 +95,7 @@ export async function getOffersList(input: {
     items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
   }
 
-  if (input.location && input.radiusKm) {
+  if (input.location && input.radiusKm !== undefined) {
     items = items.filter((item) => item.distanceKm !== null && item.distanceKm <= input.radiusKm!)
   }
 
