@@ -15,16 +15,19 @@ const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sus
 const nearOffer = {
   id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', imageUrl: null,
   originalPrice: 4290, discountPrice: 2990, discountPercent: 30, createdAt: new Date('2026-01-01'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
   business: bigBurger,
 }
 const farOffer = {
   id: 'offer-2', slug: 'pizza-grande', title: 'Pizza Grande', imageUrl: null,
   originalPrice: 5990, discountPrice: 4490, discountPercent: 25, createdAt: new Date('2026-01-02'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
   business: farBusiness,
 }
 const pendingOffer = {
   id: 'offer-3', slug: 'sushi-combo', title: 'Combo Sushi', imageUrl: null,
   originalPrice: 6990, discountPrice: 4990, discountPercent: 28, createdAt: new Date('2026-01-03'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
   business: pendingBusiness,
 }
 
@@ -84,7 +87,12 @@ describe('getFeaturedOffers', () => {
 
     expect(prisma.offer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'ACTIVE', business: { status: 'ACTIVE' } },
+        where: {
+          status: 'ACTIVE',
+          business: { status: 'ACTIVE' },
+          startDate: expect.objectContaining({ lte: expect.any(Date) }),
+          endDate: expect.objectContaining({ gte: expect.any(Date) }),
+        },
         orderBy: { createdAt: 'desc' },
       }),
     )
@@ -130,7 +138,13 @@ describe('getOffersList', () => {
 
     expect(prisma.offer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'ACTIVE', categoryId: 'cat-1', business: { status: 'ACTIVE' } },
+        where: {
+          status: 'ACTIVE',
+          categoryId: 'cat-1',
+          business: { status: 'ACTIVE' },
+          startDate: expect.objectContaining({ lte: expect.any(Date) }),
+          endDate: expect.objectContaining({ gte: expect.any(Date) }),
+        },
       }),
     )
   })
@@ -185,6 +199,28 @@ describe('getOffersList', () => {
 
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
+
+  it('excludes offers outside their active date window', async () => {
+    const expiredOffer = {
+      ...nearOffer,
+      id: 'offer-expired',
+      slug: 'expired-offer',
+      startDate: new Date('2020-01-01'),
+      endDate: new Date('2020-02-01'),
+    }
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([expiredOffer] as never)
+
+    const result = await getOffersList({ location: null })
+
+    expect(prisma.offer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          startDate: expect.objectContaining({ lte: expect.any(Date) }),
+          endDate: expect.objectContaining({ gte: expect.any(Date) }),
+        }),
+      }),
+    )
+  })
 })
 
 describe('getOfferBySlug', () => {
@@ -217,7 +253,7 @@ describe('getOfferBySlug', () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue({
       id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', description: 'Pão, carne e queijo.',
       imageUrl: null, originalPrice: 4290, discountPrice: 2990, discountPercent: 30,
-      quantityAvailable: null, startDate: new Date('2026-01-01'), endDate: new Date('2026-02-01'),
+      quantityAvailable: null, startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
       business: { name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE' },
     } as never)
 

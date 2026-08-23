@@ -71,6 +71,8 @@ export async function getFeaturedOffers(input: {
         status: 'ACTIVE',
         ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
       },
+      startDate: { lte: new Date() },
+      endDate: { gte: new Date() },
     },
     orderBy: { createdAt: 'desc' },
     include: { business: true },
@@ -99,6 +101,8 @@ export async function getOffersList(input: {
         status: 'ACTIVE',
         ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
       },
+      startDate: { lte: new Date() },
+      endDate: { gte: new Date() },
     },
     orderBy: { createdAt: 'desc' },
     include: { business: true },
@@ -146,6 +150,9 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
 
   if (!row) return null
   if (row.business.status !== 'ACTIVE') return null
+
+  const now = new Date()
+  if (row.startDate > now || row.endDate < now) return null
 
   return {
     id: row.id,
