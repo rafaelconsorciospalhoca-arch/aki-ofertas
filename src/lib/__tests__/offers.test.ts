@@ -210,7 +210,7 @@ describe('getOffersList', () => {
     }
     vi.mocked(prisma.offer.findMany).mockResolvedValue([expiredOffer] as never)
 
-    const result = await getOffersList({ location: null })
+    await getOffersList({ location: null })
 
     expect(prisma.offer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
