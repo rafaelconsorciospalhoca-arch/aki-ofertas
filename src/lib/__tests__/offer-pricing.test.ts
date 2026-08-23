@@ -61,4 +61,14 @@ describe('parseOfferInput', () => {
       throw new Error('expected success')
     }
   })
+
+  it('rejects a non-numeric quantityAvailable', () => {
+    const result = parseOfferInput({ ...validInput, quantityAvailable: 'abc' })
+    expect(result).toEqual({ error: 'Quantidade disponível inválida.' })
+  })
+
+  it('rejects a negative quantityAvailable', () => {
+    const result = parseOfferInput({ ...validInput, quantityAvailable: '-5' })
+    expect(result).toEqual({ error: 'Quantidade disponível inválida.' })
+  })
 })

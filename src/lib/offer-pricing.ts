@@ -41,7 +41,15 @@ export function parseOfferInput(input: OfferFormInput): ParsedOffer | { error: s
     return { error: 'A data final precisa ser depois da data inicial.' }
   }
 
-  const quantityAvailable = input.quantityAvailable ? Number(input.quantityAvailable) : null
+  let quantityAvailable: number | null = null
+  if (input.quantityAvailable) {
+    const parsedQuantity = Number(input.quantityAvailable)
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 0) {
+      return { error: 'Quantidade disponível inválida.' }
+    }
+    quantityAvailable = parsedQuantity
+  }
+
   const discountPercent = Math.round((1 - discountPrice / originalPrice) * 100)
 
   return { originalPrice, discountPrice, discountPercent, startDate, endDate, quantityAvailable }
