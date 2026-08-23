@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { getActiveCategories } from '@/lib/categories'
+import { getActiveCategories, getActiveCities } from '@/lib/categories'
 import { getBusinessForOwner } from '@/lib/merchant'
 import { BusinessProfileForm } from '@/components/merchant/BusinessProfileForm'
 
@@ -11,13 +11,14 @@ export default async function ComercianteEmpresaPage() {
     notFound()
   }
 
-  const categories = await getActiveCategories()
+  const [categories, cities] = await Promise.all([getActiveCategories(), getActiveCities()])
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold text-neutral-900">Empresa</h1>
       <BusinessProfileForm
         categories={categories}
+        cities={cities}
         initialValues={{
           name: business.name,
           categoryId: business.categoryId,
@@ -30,8 +31,7 @@ export default async function ComercianteEmpresaPage() {
           address: business.address,
           number: business.number ?? '',
           neighborhood: business.neighborhood ?? '',
-          city: business.city,
-          state: business.state,
+          cityState: `${business.city}|${business.state}`,
           zip: business.zip ?? '',
           logoUrl: business.logoUrl ?? '',
           coverUrl: business.coverUrl ?? '',

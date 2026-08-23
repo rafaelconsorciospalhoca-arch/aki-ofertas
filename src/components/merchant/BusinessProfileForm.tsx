@@ -16,8 +16,7 @@ type Values = {
   address: string
   number: string
   neighborhood: string
-  city: string
-  state: string
+  cityState: string
   zip: string
   logoUrl: string
   coverUrl: string
@@ -25,9 +24,11 @@ type Values = {
 
 export function BusinessProfileForm({
   categories,
+  cities,
   initialValues,
 }: {
   categories: { id: string; name: string }[]
+  cities: { id: string; name: string; state: string }[]
   initialValues: Values
 }) {
   const router = useRouter()
@@ -45,17 +46,45 @@ export function BusinessProfileForm({
     e.preventDefault()
     setError(null)
     setSuccess(false)
-    setSaving(true)
 
-    const result = await updateBusiness(values)
-
-    setSaving(false)
-    if (!result.ok) {
-      setError(result.error)
+    const [city, state] = values.cityState.split('|')
+    if (!city || !state) {
+      setError('Escolha uma cidade.')
       return
     }
-    setSuccess(true)
-    router.refresh()
+
+    setSaving(true)
+    try {
+      const result = await updateBusiness({
+        name: values.name,
+        categoryId: values.categoryId,
+        description: values.description,
+        phone: values.phone,
+        whatsapp: values.whatsapp,
+        email: values.email,
+        instagram: values.instagram,
+        website: values.website,
+        address: values.address,
+        number: values.number,
+        neighborhood: values.neighborhood,
+        city,
+        state,
+        zip: values.zip,
+        logoUrl: values.logoUrl,
+        coverUrl: values.coverUrl,
+      })
+
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setSuccess(true)
+      router.refresh()
+    } catch {
+      setError('Algo deu errado. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const inputClass = 'rounded-lg border border-neutral-300 px-3 py-2 text-sm'
@@ -135,16 +164,17 @@ export function BusinessProfileForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-          Cidade
-          <input value={values.city} onChange={(e) => update('city', e.target.value)} className={inputClass} required />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-          UF
-          <input maxLength={2} value={values.state} onChange={(e) => update('state', e.target.value)} className={inputClass} required />
-        </label>
-      </div>
+      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        Cidade
+        <select value={values.cityState} onChange={(e) => update('cityState', e.target.value)} className={inputClass} required>
+          <option value="">Escolha sua cidade</option>
+          {cities.map((city) => (
+            <option key={city.id} value={`${city.name}|${city.state}`}>
+              {city.name} - {city.state}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         URL do logo

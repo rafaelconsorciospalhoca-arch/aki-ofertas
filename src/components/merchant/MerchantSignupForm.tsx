@@ -12,13 +12,18 @@ type Values = {
   categoryId: string
   whatsapp: string
   address: string
-  city: string
-  state: string
+  cityState: string
   lat: string
   lng: string
 }
 
-export function MerchantSignupForm({ categories }: { categories: { id: string; name: string }[] }) {
+export function MerchantSignupForm({
+  categories,
+  cities,
+}: {
+  categories: { id: string; name: string }[]
+  cities: { id: string; name: string; state: string }[]
+}) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -30,8 +35,7 @@ export function MerchantSignupForm({ categories }: { categories: { id: string; n
     categoryId: categories[0]?.id ?? '',
     whatsapp: '',
     address: '',
-    city: '',
-    state: '',
+    cityState: '',
     lat: '',
     lng: '',
   })
@@ -51,16 +55,39 @@ export function MerchantSignupForm({ categories }: { categories: { id: string; n
       return
     }
 
-    setSaving(true)
-    const result = await signUpMerchant({ ...values, lat, lng })
-    setSaving(false)
-
-    if (!result.ok) {
-      setError(result.error)
+    const [city, state] = values.cityState.split('|')
+    if (!city || !state) {
+      setError('Escolha uma cidade.')
       return
     }
 
-    router.push('/entrar?cadastro=sucesso')
+    setSaving(true)
+    try {
+      const result = await signUpMerchant({
+        ownerName: values.ownerName,
+        email: values.email,
+        password: values.password,
+        businessName: values.businessName,
+        categoryId: values.categoryId,
+        whatsapp: values.whatsapp,
+        address: values.address,
+        city,
+        state,
+        lat,
+        lng,
+      })
+
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+
+      router.push('/entrar?cadastro=sucesso')
+    } catch {
+      setError('Algo deu errado. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const inputClass = 'rounded-lg border border-neutral-300 px-3 py-2 text-sm'
@@ -83,10 +110,14 @@ export function MerchantSignupForm({ categories }: { categories: { id: string; n
       </select>
       <input placeholder="WhatsApp (com DDD)" value={values.whatsapp} onChange={(e) => update('whatsapp', e.target.value)} className={inputClass} required />
       <input placeholder="Endereço" value={values.address} onChange={(e) => update('address', e.target.value)} className={inputClass} required />
-      <div className="grid grid-cols-2 gap-3">
-        <input placeholder="Cidade" value={values.city} onChange={(e) => update('city', e.target.value)} className={inputClass} required />
-        <input placeholder="UF" maxLength={2} value={values.state} onChange={(e) => update('state', e.target.value)} className={inputClass} required />
-      </div>
+      <select value={values.cityState} onChange={(e) => update('cityState', e.target.value)} className={inputClass} required>
+        <option value="">Escolha sua cidade</option>
+        {cities.map((city) => (
+          <option key={city.id} value={`${city.name}|${city.state}`}>
+            {city.name} - {city.state}
+          </option>
+        ))}
+      </select>
       <div className="grid grid-cols-2 gap-3">
         <input placeholder="Latitude" value={values.lat} onChange={(e) => update('lat', e.target.value)} className={inputClass} required />
         <input placeholder="Longitude" value={values.lng} onChange={(e) => update('lng', e.target.value)} className={inputClass} required />
