@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
+import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -61,6 +62,12 @@ function EntrarForm() {
           Entrar
         </button>
       </form>
+      <p className="mt-4 text-center text-sm text-neutral-500">
+        Tem uma empresa?{' '}
+        <Link href="/comerciante/cadastro" className="font-bold text-brand-green">
+          Cadastre-se
+        </Link>
+      </p>
     </div>
   )
 }
