@@ -1,7 +1,12 @@
 export function slugify(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+  const withoutDiacritics = Array.from(text.normalize('NFD'))
+    .filter((char) => {
+      const codePoint = char.codePointAt(0) ?? 0
+      return codePoint < 0x0300 || codePoint > 0x036f
+    })
+    .join('')
+
+  return withoutDiacritics
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, '')
