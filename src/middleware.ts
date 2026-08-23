@@ -14,7 +14,8 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const role = (req.auth?.user as { role?: string } | undefined)?.role
 
-  const isMerchantArea = pathname.startsWith('/comerciante')
+  const isMerchantSignup = pathname === '/comerciante/cadastro'
+  const isMerchantArea = pathname.startsWith('/comerciante') && !isMerchantSignup
   const isAdminArea = pathname.startsWith('/admin')
 
   if ((isMerchantArea || isAdminArea) && !req.auth) {

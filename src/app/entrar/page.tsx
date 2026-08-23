@@ -31,6 +31,11 @@ function EntrarForm() {
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-6">
       <h1 className="mb-6 text-xl font-bold">Entrar</h1>
+      {searchParams.get('cadastro') === 'sucesso' && (
+        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          Empresa cadastrada! Faça login para acessar seu painel.
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
           type="email"
