@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { getBusinessForOwner, getMyOffers } from '@/lib/merchant'
 import { centsToReais } from '@/lib/money'
+import { CancelOfferButton } from '@/components/merchant/CancelOfferButton'
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Rascunho',
@@ -56,9 +57,12 @@ export default async function ComercianteOfertasPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/comerciante/ofertas/${offer.id}`} className="text-xs font-bold text-brand-green">
-                      Editar
-                    </Link>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/comerciante/ofertas/${offer.id}`} className="text-xs font-bold text-brand-green">
+                        Editar
+                      </Link>
+                      {offer.status === 'ACTIVE' && <CancelOfferButton offerId={offer.id} />}
+                    </div>
                   </td>
                 </tr>
               ))}
