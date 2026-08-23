@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { slugify, randomSlugSuffix } from '@/lib/slug'
+import { auth } from '@/lib/auth'
 
 const signUpMerchantSchema = z.object({
   ownerName: z.string().min(2, 'Informe seu nome.'),
@@ -70,4 +71,67 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
   })
 
   return { ok: true, businessId: business.id }
+}
+
+const updateBusinessSchema = z.object({
+  name: z.string().min(2, 'Informe o nome da empresa.'),
+  categoryId: z.string().min(1, 'Escolha uma categoria.'),
+  description: z.string().optional(),
+  phone: z.string().optional(),
+  whatsapp: z.string().optional(),
+  email: z.string().email('E-mail inválido.').optional().or(z.literal('')),
+  instagram: z.string().optional(),
+  website: z.string().optional(),
+  address: z.string().min(3, 'Informe o endereço.'),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().min(2, 'Informe a cidade.'),
+  state: z.string().length(2, 'Use a sigla do estado (ex: PR).'),
+  zip: z.string().optional(),
+  logoUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
+  coverUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
+})
+
+type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>
+type UpdateBusinessResult = { ok: true } | { ok: false; error: string }
+
+export async function updateBusiness(input: UpdateBusinessInput): Promise<UpdateBusinessResult> {
+  const session = await auth()
+  if (!session?.user || (session.user as { role?: string }).role !== 'MERCHANT') {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = updateBusinessSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const business = await prisma.business.findFirst({ where: { ownerId: session.user.id as string } })
+  if (!business) {
+    return { ok: false, error: 'Empresa não encontrada.' }
+  }
+
+  await prisma.business.update({
+    where: { id: business.id },
+    data: {
+      name: parsed.data.name,
+      categoryId: parsed.data.categoryId,
+      description: parsed.data.description || null,
+      phone: parsed.data.phone || null,
+      whatsapp: parsed.data.whatsapp || null,
+      email: parsed.data.email || null,
+      instagram: parsed.data.instagram || null,
+      website: parsed.data.website || null,
+      address: parsed.data.address,
+      number: parsed.data.number || null,
+      neighborhood: parsed.data.neighborhood || null,
+      city: parsed.data.city,
+      state: parsed.data.state.toUpperCase(),
+      zip: parsed.data.zip || null,
+      logoUrl: parsed.data.logoUrl || null,
+      coverUrl: parsed.data.coverUrl || null,
+    },
+  })
+
+  return { ok: true }
 }

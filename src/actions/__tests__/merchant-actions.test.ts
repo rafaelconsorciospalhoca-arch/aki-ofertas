@@ -1,13 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { signUpMerchant } from '@/actions/merchant-actions'
+import { signUpMerchant, updateBusiness } from '@/actions/merchant-actions'
 import { prisma } from '@/lib/db'
+import { auth } from '@/lib/auth'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     plan: { findUnique: vi.fn() },
+    business: { findFirst: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   },
+}))
+
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn(),
 }))
 
 const validInput = {
@@ -83,5 +89,61 @@ describe('signUpMerchant', () => {
     expect(businessData.status).toBe('PENDING')
     expect(businessData.planId).toBe('plan-free')
     expect((businessData.slug as string).startsWith('pizza-boa-')).toBe(true)
+  })
+})
+
+const validBusinessInput = {
+  name: 'Pizza Boa',
+  categoryId: 'cat-1',
+  address: 'Rua das Flores, 10',
+  city: 'Marmeleiro',
+  state: 'pr',
+}
+
+describe('updateBusiness', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when there is no session', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await updateBusiness(validBusinessInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the session role is not MERCHANT', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'CONSUMER' } } as never)
+    const result = await updateBusiness(validBusinessInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects invalid input', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    const result = await updateBusiness({ ...validBusinessInput, state: 'Parana' })
+    expect(result).toEqual({ ok: false, error: 'Use a sigla do estado (ex: PR).' })
+  })
+
+  it('rejects when no business is owned by this user', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(null as never)
+
+    const result = await updateBusiness(validBusinessInput)
+    expect(result).toEqual({ ok: false, error: 'Empresa não encontrada.' })
+  })
+
+  it('updates the business owned by this user, uppercasing the state', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusiness(validBusinessInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.business.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'biz-1' },
+        data: expect.objectContaining({ name: 'Pizza Boa', state: 'PR' }),
+      }),
+    )
   })
 })
