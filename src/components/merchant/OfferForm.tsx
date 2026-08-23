@@ -51,15 +51,20 @@ export function OfferForm({
     setError(null)
     setSaving(true)
 
-    const result = offerId ? await updateOffer(offerId, values) : await createOffer(values)
+    try {
+      const result = offerId ? await updateOffer(offerId, values) : await createOffer(values)
 
-    setSaving(false)
-    if (!result.ok) {
-      setError(result.error)
-      return
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      router.push('/comerciante/ofertas')
+      router.refresh()
+    } catch {
+      setError('Algo deu errado. Tente novamente.')
+    } finally {
+      setSaving(false)
     }
-    router.push('/comerciante/ofertas')
-    router.refresh()
   }
 
   const inputClass = 'rounded-lg border border-neutral-300 px-3 py-2 text-sm'
