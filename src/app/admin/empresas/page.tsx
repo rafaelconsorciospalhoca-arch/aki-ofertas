@@ -23,7 +23,10 @@ export default async function AdminEmpresasPage({
 }: {
   searchParams: { status?: string }
 }) {
-  const status = searchParams.status as BusinessStatus | undefined
+  const validStatuses = FILTERS.map((filter) => filter.value).filter(Boolean)
+  const status = validStatuses.includes(searchParams.status as BusinessStatus)
+    ? (searchParams.status as BusinessStatus)
+    : undefined
   const businesses = await getBusinessesForAdmin(status)
 
   return (
