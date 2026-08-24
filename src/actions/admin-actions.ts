@@ -33,3 +33,79 @@ export async function updateBusinessStatus(
 
   return { ok: true }
 }
+
+const categorySchema = z.object({
+  name: z.string().min(2, 'Informe o nome da categoria.'),
+  icon: z.string().min(1, 'Informe o ícone.'),
+  order: z.string().min(1, 'Informe a ordem.'),
+  active: z.boolean(),
+})
+
+type CategoryInput = z.infer<typeof categorySchema>
+type CategoryResult = { ok: true; categoryId: string } | { ok: false; error: string }
+
+function parseOrder(value: string): number | { error: string } {
+  const order = Number(value)
+  if (!Number.isInteger(order) || order < 0) {
+    return { error: 'Ordem inválida.' }
+  }
+  return order
+}
+
+export async function createCategory(input: CategoryInput): Promise<CategoryResult> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = categorySchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const order = parseOrder(parsed.data.order)
+  if (typeof order !== 'number') {
+    return { ok: false, error: order.error }
+  }
+
+  const existing = await prisma.category.findUnique({ where: { name: parsed.data.name } })
+  if (existing) {
+    return { ok: false, error: 'Esta categoria já existe.' }
+  }
+
+  const category = await prisma.category.create({
+    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active },
+  })
+
+  return { ok: true, categoryId: category.id }
+}
+
+export async function updateCategory(
+  id: string,
+  input: CategoryInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = categorySchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const order = parseOrder(parsed.data.order)
+  if (typeof order !== 'number') {
+    return { ok: false, error: order.error }
+  }
+
+  const existing = await prisma.category.findUnique({ where: { id } })
+  if (!existing) {
+    return { ok: false, error: 'Categoria não encontrada.' }
+  }
+
+  await prisma.category.update({
+    where: { id },
+    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active },
+  })
+
+  return { ok: true }
+}

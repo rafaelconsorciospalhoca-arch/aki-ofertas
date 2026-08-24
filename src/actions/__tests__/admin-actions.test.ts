@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus } from '@/actions/admin-actions'
+import { updateBusinessStatus, createCategory, updateCategory } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -58,6 +58,89 @@ describe('updateBusinessStatus', () => {
     expect(prisma.business.update).toHaveBeenCalledWith({
       where: { id: 'biz-1' },
       data: { status: 'ACTIVE' },
+    })
+  })
+})
+
+const validCategoryInput = { name: 'Pet Shop', icon: 'pet', order: '9', active: true }
+
+describe('createCategory', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the session role is not ADMIN', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    const result = await createCategory(validCategoryInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects an invalid name', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    const result = await createCategory({ ...validCategoryInput, name: 'P' })
+    expect(result).toEqual({ ok: false, error: 'Informe o nome da categoria.' })
+  })
+
+  it('rejects an invalid order', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
+
+    const result = await createCategory({ ...validCategoryInput, order: 'abc' })
+    expect(result).toEqual({ ok: false, error: 'Ordem inválida.' })
+  })
+
+  it('rejects a duplicate category name', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'existing' } as never)
+
+    const result = await createCategory(validCategoryInput)
+    expect(result).toEqual({ ok: false, error: 'Esta categoria já existe.' })
+  })
+
+  it('creates the category when input is valid and the name is free', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.category.create).mockResolvedValue({ id: 'cat-1' } as never)
+
+    const result = await createCategory(validCategoryInput)
+
+    expect(result).toEqual({ ok: true, categoryId: 'cat-1' })
+    expect(prisma.category.create).toHaveBeenCalledWith({
+      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true },
+    })
+  })
+})
+
+describe('updateCategory', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the session role is not ADMIN', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    const result = await updateCategory('cat-1', validCategoryInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the category does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
+
+    const result = await updateCategory('cat-1', validCategoryInput)
+    expect(result).toEqual({ ok: false, error: 'Categoria não encontrada.' })
+  })
+
+  it('updates the category when it exists', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'cat-1' } as never)
+    vi.mocked(prisma.category.update).mockResolvedValue({ id: 'cat-1' } as never)
+
+    const result = await updateCategory('cat-1', validCategoryInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.category.update).toHaveBeenCalledWith({
+      where: { id: 'cat-1' },
+      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true },
     })
   })
 })
