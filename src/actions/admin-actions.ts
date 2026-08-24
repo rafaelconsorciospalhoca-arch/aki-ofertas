@@ -109,3 +109,68 @@ export async function updateCategory(
 
   return { ok: true }
 }
+
+const citySchema = z.object({
+  name: z.string().min(2, 'Informe o nome da cidade.'),
+  state: z.string().length(2, 'Use a sigla do estado (ex: PR).'),
+  active: z.boolean(),
+  comingSoon: z.boolean(),
+})
+
+type CityInput = z.infer<typeof citySchema>
+type CityResult = { ok: true; cityId: string } | { ok: false; error: string }
+
+export async function createCity(input: CityInput): Promise<CityResult> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = citySchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const state = parsed.data.state.toUpperCase()
+
+  const existing = await prisma.city.findFirst({ where: { name: parsed.data.name, state } })
+  if (existing) {
+    return { ok: false, error: 'Esta cidade já existe.' }
+  }
+
+  const city = await prisma.city.create({
+    data: { name: parsed.data.name, state, active: parsed.data.active, comingSoon: parsed.data.comingSoon },
+  })
+
+  return { ok: true, cityId: city.id }
+}
+
+export async function updateCity(
+  id: string,
+  input: CityInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = citySchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const existing = await prisma.city.findUnique({ where: { id } })
+  if (!existing) {
+    return { ok: false, error: 'Cidade não encontrada.' }
+  }
+
+  await prisma.city.update({
+    where: { id },
+    data: {
+      name: parsed.data.name,
+      state: parsed.data.state.toUpperCase(),
+      active: parsed.data.active,
+      comingSoon: parsed.data.comingSoon,
+    },
+  })
+
+  return { ok: true }
+}

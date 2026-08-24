@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, createCategory, updateCategory } from '@/actions/admin-actions'
+import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -141,6 +141,75 @@ describe('updateCategory', () => {
     expect(prisma.category.update).toHaveBeenCalledWith({
       where: { id: 'cat-1' },
       data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true },
+    })
+  })
+})
+
+const validCityInput = { name: 'Curitiba', state: 'pr', active: true, comingSoon: false }
+
+describe('createCity', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the session role is not ADMIN', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    const result = await createCity(validCityInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects a state that is not a 2-letter code', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    const result = await createCity({ ...validCityInput, state: 'Parana' })
+    expect(result).toEqual({ ok: false, error: 'Use a sigla do estado (ex: PR).' })
+  })
+
+  it('rejects a duplicate name+state combination', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'existing' } as never)
+
+    const result = await createCity(validCityInput)
+    expect(result).toEqual({ ok: false, error: 'Esta cidade já existe.' })
+  })
+
+  it('creates the city, uppercasing the state', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue(null as never)
+    vi.mocked(prisma.city.create).mockResolvedValue({ id: 'city-1' } as never)
+
+    const result = await createCity(validCityInput)
+
+    expect(result).toEqual({ ok: true, cityId: 'city-1' })
+    expect(prisma.city.create).toHaveBeenCalledWith({
+      data: { name: 'Curitiba', state: 'PR', active: true, comingSoon: false },
+    })
+  })
+})
+
+describe('updateCity', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the city does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.city.findUnique).mockResolvedValue(null as never)
+
+    const result = await updateCity('city-1', validCityInput)
+    expect(result).toEqual({ ok: false, error: 'Cidade não encontrada.' })
+  })
+
+  it('updates the city when it exists', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.city.findUnique).mockResolvedValue({ id: 'city-1' } as never)
+    vi.mocked(prisma.city.update).mockResolvedValue({ id: 'city-1' } as never)
+
+    const result = await updateCity('city-1', validCityInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.city.update).toHaveBeenCalledWith({
+      where: { id: 'city-1' },
+      data: { name: 'Curitiba', state: 'PR', active: true, comingSoon: false },
     })
   })
 })
