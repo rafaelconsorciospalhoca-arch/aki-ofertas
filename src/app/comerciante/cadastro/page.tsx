@@ -1,6 +1,8 @@
 import { getActiveCategories, getActiveCities } from '@/lib/categories'
 import { MerchantSignupForm } from '@/components/merchant/MerchantSignupForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ComercianteCadastroPage() {
   const [categories, cities] = await Promise.all([getActiveCategories(), getActiveCities()])
 

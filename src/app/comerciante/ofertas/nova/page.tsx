@@ -1,6 +1,8 @@
 import { getActiveCategories } from '@/lib/categories'
 import { OfferForm } from '@/components/merchant/OfferForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function NovaOfertaPage() {
   const categories = await getActiveCategories()
 
