@@ -8,6 +8,33 @@ import { requireMerchantBusiness } from '@/actions/offer-actions'
 type CouponSummary = { id: string; code: string; expiresAt: Date }
 type CouponResult = { ok: true; coupon: CouponSummary } | { ok: false; error: string }
 
+const OFFER_NOT_AVAILABLE = 'Oferta não encontrada.'
+const SOLD_OUT = 'Esta oferta esgotou.'
+const GENERATE_FAILED = 'Não foi possível gerar o cupom. Tente novamente.'
+const MAX_ATTEMPTS = 3
+
+function errorCode(err: unknown): string | undefined {
+  return (err as { code?: string } | null | undefined)?.code
+}
+
+/** Lowercased, comma-joined `meta.target` of a Prisma P2002 unique-constraint error. */
+function uniqueTarget(err: unknown): string {
+  const target = (err as { meta?: { target?: unknown } } | null | undefined)?.meta?.target
+  if (Array.isArray(target)) return target.map(String).join(',').toLowerCase()
+  if (typeof target === 'string') return target.toLowerCase()
+  return ''
+}
+
+/** True when the violated unique constraint is the `(userId, offerId)` one. */
+function isUserOfferConflict(err: unknown): boolean {
+  const target = uniqueTarget(err)
+  return target.includes('userid') && target.includes('offerid')
+}
+
+function toSummary(coupon: { id: string; code: string; expiresAt: Date }): CouponSummary {
+  return { id: coupon.id, code: coupon.code, expiresAt: coupon.expiresAt }
+}
+
 export async function generateCoupon(offerId: string): Promise<CouponResult> {
   const session = await auth()
   if (!session?.user) {
@@ -15,53 +42,90 @@ export async function generateCoupon(offerId: string): Promise<CouponResult> {
   }
   const userId = session.user.id as string
 
-  const result = await prisma.$transaction(async (tx) => {
-    const existing = await tx.coupon.findFirst({ where: { userId, offerId } })
-    if (existing) {
-      return { ok: true as const, coupon: existing }
-    }
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      // Serializable so that Postgres itself rejects concurrent transactions whose
+      // stock count would be invalidated by a competing insert (surfaced as P2034).
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.coupon.findFirst({ where: { userId, offerId } })
+          if (existing) {
+            return { ok: true as const, coupon: existing }
+          }
 
-    const offer = await tx.offer.findUnique({ where: { id: offerId } })
-    if (!offer || offer.status !== 'ACTIVE') {
-      return { ok: false as const, error: 'Oferta não encontrada.' }
-    }
+          const offer = await tx.offer.findUnique({
+            where: { id: offerId },
+            include: {
+              business: { select: { status: true, owner: { select: { blocked: true } } } },
+            },
+          })
 
-    if (offer.quantityAvailable !== null) {
-      const count = await tx.coupon.count({ where: { offerId } })
-      if (count >= offer.quantityAvailable) {
-        return { ok: false as const, error: 'Esta oferta esgotou.' }
+          // Mirrors the public visibility rules in getOfferBySlug. A single opaque
+          // message for every failure, so we don't leak which condition failed.
+          if (!offer || offer.status !== 'ACTIVE') {
+            return { ok: false as const, error: OFFER_NOT_AVAILABLE }
+          }
+          if (offer.business.status !== 'ACTIVE' || offer.business.owner.blocked) {
+            return { ok: false as const, error: OFFER_NOT_AVAILABLE }
+          }
+          const now = new Date()
+          if (offer.startDate > now || offer.endDate < now) {
+            return { ok: false as const, error: OFFER_NOT_AVAILABLE }
+          }
+
+          if (offer.quantityAvailable !== null) {
+            const count = await tx.coupon.count({ where: { offerId } })
+            if (count >= offer.quantityAvailable) {
+              return { ok: false as const, error: SOLD_OUT }
+            }
+          }
+
+          const coupon = await tx.coupon.create({
+            data: {
+              userId,
+              offerId,
+              businessId: offer.businessId,
+              code: generateCouponCode(),
+              status: 'GENERATED',
+              expiresAt: offer.endDate,
+            },
+          })
+          return { ok: true as const, coupon }
+        },
+        { isolationLevel: 'Serializable' },
+      )
+
+      if (!result.ok) {
+        return result
       }
-    }
+      return { ok: true, coupon: toSummary(result.coupon) }
+    } catch (err) {
+      const code = errorCode(err)
 
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const coupon = await tx.coupon.create({
-          data: {
-            userId,
-            offerId,
-            businessId: offer.businessId,
-            code: generateCouponCode(),
-            status: 'GENERATED',
-            expiresAt: offer.endDate,
-          },
-        })
-        return { ok: true as const, coupon }
-      } catch (err) {
-        const isUniqueViolation = (err as { code?: string }).code === 'P2002'
-        if (!isUniqueViolation || attempt === 2) throw err
+      // A concurrent request for the same user+offer won the race. The whole
+      // transaction is aborted, so re-read outside of it and return that coupon:
+      // one coupon per person per offer makes this idempotent, not an error.
+      if (code === 'P2002' && isUserOfferConflict(err)) {
+        const winner = await prisma.coupon.findFirst({ where: { userId, offerId } })
+        if (winner) {
+          return { ok: true, coupon: toSummary(winner) }
+        }
+        continue
       }
-    }
-    throw new Error('unreachable')
-  })
 
-  if (!result.ok) {
-    return result
+      // P2034: serialization conflict. P2002 on `code`: astronomically unlikely
+      // collision. Both are retried by re-running the whole transaction — a
+      // retry *inside* the aborted transaction would only fail with 25P02.
+      if (code === 'P2034' || code === 'P2002') {
+        continue
+      }
+
+      console.error('generateCoupon failed', err)
+      return { ok: false, error: GENERATE_FAILED }
+    }
   }
 
-  return {
-    ok: true,
-    coupon: { id: result.coupon.id, code: result.coupon.code, expiresAt: result.coupon.expiresAt },
-  }
+  return { ok: false, error: GENERATE_FAILED }
 }
 
 type ValidateCouponResult =

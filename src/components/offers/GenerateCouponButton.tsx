@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { generateCoupon } from '@/actions/coupon-actions'
 
-type InitialCoupon = { code: string } | null
+type CouponStatus = 'VALID' | 'USED' | 'EXPIRED'
+type InitialCoupon = { code: string; status: CouponStatus } | null
 
 export function GenerateCouponButton({
   offerId,
@@ -27,10 +28,25 @@ export function GenerateCouponButton({
         setError(result.error)
         return
       }
-      setCoupon({ code: result.coupon.code })
+      setCoupon({ code: result.coupon.code, status: 'VALID' })
+    } catch {
+      setError('Não foi possível concluir. Tente novamente.')
     } finally {
       setPending(false)
     }
+  }
+
+  if (coupon && coupon.status !== 'VALID') {
+    // 1 cupom por pessoa por oferta: não há segundo cupom a gerar.
+    return (
+      <div className="rounded-lg bg-neutral-100 px-4 py-3 text-center">
+        <p className="text-sm font-medium text-neutral-500">
+          {coupon.status === 'USED'
+            ? 'Você já utilizou o cupom desta oferta.'
+            : 'O cupom desta oferta expirou.'}
+        </p>
+      </div>
+    )
   }
 
   if (coupon) {

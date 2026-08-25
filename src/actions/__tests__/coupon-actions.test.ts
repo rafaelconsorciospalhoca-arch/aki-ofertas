@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { generateCoupon } from '@/actions/coupon-actions'
+import { generateCoupon, validateCoupon } from '@/actions/coupon-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
     $transaction: vi.fn(),
-    coupon: { findUnique: vi.fn(), update: vi.fn() },
+    coupon: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     business: { findFirst: vi.fn() },
   },
 }))
@@ -28,11 +28,24 @@ function mockTransaction(tx: {
   })
 }
 
+const DAY = 24 * 60 * 60 * 1000
+
+function p2002(target: string[]) {
+  return Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target } })
+}
+
+function p2034() {
+  return Object.assign(new Error('Write conflict'), { code: 'P2034' })
+}
+
 const activeOffer = {
   id: 'offer-1',
   status: 'ACTIVE',
-  endDate: new Date('2026-07-01'),
+  businessId: 'biz-1',
+  startDate: new Date(Date.now() - DAY),
+  endDate: new Date(Date.now() + 30 * DAY),
   quantityAvailable: null,
+  business: { status: 'ACTIVE', owner: { blocked: false } },
 }
 
 describe('generateCoupon', () => {
@@ -112,9 +125,145 @@ describe('generateCoupon', () => {
     await generateCoupon('offer-1')
     expect(count).not.toHaveBeenCalled()
   })
-})
 
-import { validateCoupon } from '@/actions/coupon-actions'
+  it('rejects when the business is not ACTIVE', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    mockTransaction({
+      coupon: { findFirst: vi.fn().mockResolvedValue(null), count: vi.fn(), create: vi.fn() },
+      offer: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...activeOffer,
+          business: { status: 'SUSPENDED', owner: { blocked: false } },
+        }),
+      },
+    })
+
+    const result = await generateCoupon('offer-1')
+    expect(result).toEqual({ ok: false, error: 'Oferta não encontrada.' })
+  })
+
+  it('rejects when the business owner is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    mockTransaction({
+      coupon: { findFirst: vi.fn().mockResolvedValue(null), count: vi.fn(), create: vi.fn() },
+      offer: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...activeOffer,
+          business: { status: 'ACTIVE', owner: { blocked: true } },
+        }),
+      },
+    })
+
+    const result = await generateCoupon('offer-1')
+    expect(result).toEqual({ ok: false, error: 'Oferta não encontrada.' })
+  })
+
+  it('rejects when the offer has not started yet', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    mockTransaction({
+      coupon: { findFirst: vi.fn().mockResolvedValue(null), count: vi.fn(), create: vi.fn() },
+      offer: {
+        findUnique: vi.fn().mockResolvedValue({ ...activeOffer, startDate: new Date(Date.now() + DAY) }),
+      },
+    })
+
+    const result = await generateCoupon('offer-1')
+    expect(result).toEqual({ ok: false, error: 'Oferta não encontrada.' })
+  })
+
+  it('rejects when the offer has already ended', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    mockTransaction({
+      coupon: { findFirst: vi.fn().mockResolvedValue(null), count: vi.fn(), create: vi.fn() },
+      offer: {
+        findUnique: vi.fn().mockResolvedValue({ ...activeOffer, endDate: new Date(Date.now() - DAY) }),
+      },
+    })
+
+    const result = await generateCoupon('offer-1')
+    expect(result).toEqual({ ok: false, error: 'Oferta não encontrada.' })
+  })
+
+  it('runs the transaction with Serializable isolation', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    mockTransaction({
+      coupon: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: 'c', code: 'AK7X9K2', expiresAt: activeOffer.endDate }),
+      },
+      offer: { findUnique: vi.fn().mockResolvedValue(activeOffer) },
+    })
+
+    await generateCoupon('offer-1')
+
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'Serializable',
+    })
+  })
+
+  it('returns the winning coupon when a concurrent request already created one', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    const winner = { id: 'coupon-9', code: 'AKWIN1', expiresAt: activeOffer.endDate }
+    vi.mocked(prisma.$transaction).mockRejectedValue(p2002(['userId', 'offerId']))
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue(winner as never)
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: true, coupon: winner })
+    expect(prisma.coupon.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-1', offerId: 'offer-1' },
+    })
+    // The recovery read happens outside the aborted transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries the whole transaction on a serialization conflict', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    const created = { id: 'coupon-3', code: 'AK7X9K2', expiresAt: activeOffer.endDate }
+    vi.mocked(prisma.$transaction)
+      .mockRejectedValueOnce(p2034())
+      .mockResolvedValueOnce({ ok: true, coupon: created } as never)
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: true, coupon: created })
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up with a generic message after exhausting the retries', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    vi.mocked(prisma.$transaction).mockRejectedValue(p2034())
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: false, error: 'Não foi possível gerar o cupom. Tente novamente.' })
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3)
+  })
+
+  it('retries with a fresh code when the code collides', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    const created = { id: 'coupon-4', code: 'AK7X9K2', expiresAt: activeOffer.endDate }
+    vi.mocked(prisma.$transaction)
+      .mockRejectedValueOnce(p2002(['code']))
+      .mockResolvedValueOnce({ ok: true, coupon: created } as never)
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: true, coupon: created })
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let an unexpected error escape the action', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(prisma.$transaction).mockRejectedValue(new Error('connection lost'))
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: false, error: 'Não foi possível gerar o cupom. Tente novamente.' })
+  })
+})
 
 const now = new Date('2026-06-15T12:00:00Z')
 

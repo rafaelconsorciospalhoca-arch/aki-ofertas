@@ -18,6 +18,8 @@ export function ValidateCouponForm() {
       const response = await validateCoupon(code.trim().toUpperCase())
       setResult(response)
       if (response.ok) setCode('')
+    } catch {
+      setResult({ ok: false, error: 'Não foi possível concluir. Tente novamente.' })
     } finally {
       setPending(false)
     }

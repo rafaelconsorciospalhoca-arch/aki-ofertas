@@ -89,7 +89,9 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
         {session?.user ? (
           <GenerateCouponButton
             offerId={offer.id}
-            initialCoupon={existingCoupon ? { code: existingCoupon.code } : null}
+            initialCoupon={
+              existingCoupon ? { code: existingCoupon.code, status: existingCoupon.status } : null
+            }
             soldOut={soldOut}
           />
         ) : (
