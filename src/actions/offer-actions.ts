@@ -21,7 +21,7 @@ const offerSchema = z.object({
 type OfferActionInput = OfferFormInput & z.infer<typeof offerSchema>
 type OfferResult = { ok: true; offerId: string } | { ok: false; error: string }
 
-async function requireMerchantBusiness() {
+export async function requireMerchantBusiness() {
   const session = await auth()
   if (!session?.user || (session.user as { role?: string }).role !== 'MERCHANT') {
     return null
