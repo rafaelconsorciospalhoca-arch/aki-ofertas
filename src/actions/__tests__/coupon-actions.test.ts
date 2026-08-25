@@ -6,6 +6,8 @@ import { auth } from '@/lib/auth'
 vi.mock('@/lib/db', () => ({
   prisma: {
     $transaction: vi.fn(),
+    coupon: { findUnique: vi.fn(), update: vi.fn() },
+    business: { findFirst: vi.fn() },
   },
 }))
 
@@ -109,5 +111,90 @@ describe('generateCoupon', () => {
 
     await generateCoupon('offer-1')
     expect(count).not.toHaveBeenCalled()
+  })
+})
+
+import { validateCoupon } from '@/actions/coupon-actions'
+
+const now = new Date('2026-06-15T12:00:00Z')
+
+const merchantBusiness = { id: 'biz-1', owner: { id: 'merchant-1', blocked: false } }
+
+describe('validateCoupon', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('rejects when there is no merchant session', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await validateCoupon('AK7X9K2')
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the code does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'merchant-1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(merchantBusiness as never)
+    vi.mocked(prisma.coupon.findUnique).mockResolvedValue(null)
+
+    const result = await validateCoupon('AK0000')
+    expect(result).toEqual({ ok: false, error: 'Cupom não encontrado.' })
+  })
+
+  it('rejects when the coupon belongs to a different business', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'merchant-1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(merchantBusiness as never)
+    vi.mocked(prisma.coupon.findUnique).mockResolvedValue({
+      id: 'coupon-1', businessId: 'biz-2', status: 'GENERATED', expiresAt: new Date('2026-07-01'),
+      offer: { title: 'Combo' }, user: { name: 'Maria Silva' },
+    } as never)
+
+    const result = await validateCoupon('AK7X9K2')
+    expect(result).toEqual({ ok: false, error: 'Este cupom não é de uma oferta da sua loja.' })
+  })
+
+  it('rejects an already-used coupon', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'merchant-1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(merchantBusiness as never)
+    vi.mocked(prisma.coupon.findUnique).mockResolvedValue({
+      id: 'coupon-1', businessId: 'biz-1', status: 'USED', expiresAt: new Date('2026-07-01'),
+      offer: { title: 'Combo' }, user: { name: 'Maria Silva' },
+    } as never)
+
+    const result = await validateCoupon('AK7X9K2')
+    expect(result).toEqual({ ok: false, error: 'Este cupom já foi utilizado.' })
+  })
+
+  it('rejects an expired coupon', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'merchant-1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(merchantBusiness as never)
+    vi.mocked(prisma.coupon.findUnique).mockResolvedValue({
+      id: 'coupon-1', businessId: 'biz-1', status: 'GENERATED', expiresAt: new Date('2026-06-01'),
+      offer: { title: 'Combo' }, user: { name: 'Maria Silva' },
+    } as never)
+
+    const result = await validateCoupon('AK7X9K2')
+    expect(result).toEqual({ ok: false, error: 'Este cupom está expirado.' })
+  })
+
+  it('marks a valid coupon as used and returns the offer and customer name', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'merchant-1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(merchantBusiness as never)
+    vi.mocked(prisma.coupon.findUnique).mockResolvedValue({
+      id: 'coupon-1', businessId: 'biz-1', status: 'GENERATED', expiresAt: new Date('2026-07-01'),
+      offer: { title: 'Combo Burguer' }, user: { name: 'Maria Silva' },
+    } as never)
+    vi.mocked(prisma.coupon.update).mockResolvedValue({} as never)
+
+    const result = await validateCoupon('AK7X9K2')
+
+    expect(result).toEqual({ ok: true, offerTitle: 'Combo Burguer', customerName: 'Maria' })
+    expect(prisma.coupon.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'coupon-1' }, data: expect.objectContaining({ status: 'USED' }) }),
+    )
   })
 })
