@@ -29,7 +29,7 @@ async function requireMerchantBusiness() {
 
   const business = await prisma.business.findFirst({
     where: { ownerId: session.user.id as string },
-    include: { owner: true },
+    include: { owner: { select: { blocked: true } } },
   })
   if (!business || business.owner.blocked) {
     return null

@@ -147,7 +147,7 @@ export type OfferDetail = {
 export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> {
   const row = await prisma.offer.findUnique({
     where: { slug },
-    include: { business: { include: { owner: true } } },
+    include: { business: { include: { owner: { select: { blocked: true } } } } },
   })
 
   if (!row) return null
