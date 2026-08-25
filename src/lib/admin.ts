@@ -38,3 +38,34 @@ export async function getAllCities() {
 export async function getCityById(id: string) {
   return prisma.city.findUnique({ where: { id } })
 }
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  role: true,
+  city: true,
+  state: true,
+  blocked: true,
+  createdAt: true,
+} as const
+
+export async function getUsersForAdmin(query?: string) {
+  return prisma.user.findMany({
+    where: query
+      ? {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' as const } },
+            { email: { contains: query, mode: 'insensitive' as const } },
+          ],
+        }
+      : {},
+    select: userSelect,
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export async function getUserById(id: string) {
+  return prisma.user.findUnique({ where: { id }, select: userSelect })
+}
