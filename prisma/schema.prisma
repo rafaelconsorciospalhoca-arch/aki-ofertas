@@ -40,6 +40,7 @@ model User {
   phone        String?
   passwordHash String
   role         Role     @default(CONSUMER)
+  blocked      Boolean  @default(false)
   city         String?
   state        String?
   createdAt    DateTime @default(now())
