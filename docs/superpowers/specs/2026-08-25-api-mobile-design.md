@@ -10,12 +10,17 @@ Fora de escopo aqui: favoritos (ainda não existe nem no site — vira um sub-pr
 
 ## Decisões de produto
 
-- **Login por e-mail + código, sem senha.** O consumidor digita o e-mail, recebe um código de 6 dígitos por e-mail, confirma e entra. Cadastro (primeira vez) só pede o nome — nenhum outro dado obrigatório.
-- **Sessão de longa duração.** Depois do primeiro login, o app fica autenticado por 60 dias sem pedir o código de novo — o token fica salvo no aparelho. Se expirar ou for revogado (ex: admin bloqueia o usuário), pede o código de novo.
-- **Envio de e-mail via Resend** (plano grátis) — ainda não existe nenhum serviço de e-mail configurado no projeto.
+- **Dois jeitos de entrar: "Cadastrar com Google" (destaque) ou "Cadastro normal" — e-mail + código (alternativa).** A tela mostra um botão grande "Cadastrar com Google" primeiro — 1 toque, sem digitar nada, sem esperar e-mail. Abaixo, uma opção menor "Cadastro normal" para quem não tem/não quer usar conta Google. Por trás, os dois botões disparam a mesma ação de sempre (login-ou-cadastro automático): não existe uma tela de "criar conta" separada da de entrar — a primeira vez que a pessoa usa qualquer um dos dois botões já cria a conta; nas vezes seguintes, o mesmo botão simplesmente loga (a sessão de 60 dias normalmente já evita precisar tocar em qualquer botão de novo).
+  - **Google**: nome e e-mail vêm prontos do perfil Google — cadastro é zero-digitação.
+  - **E-mail + código**: sem senha. Digita o e-mail, recebe um código de 6 dígitos, confirma e entra; só pede o nome digitado na primeira vez (único dado obrigatório desse caminho).
+- **Sessão de longa duração**, igual para os dois métodos de login. Depois do primeiro login, o app fica autenticado por 60 dias sem pedir nada de novo — o token fica salvo no aparelho. Se expirar ou for revogado (ex: admin bloqueia o usuário), pede login de novo.
+- **Envio de e-mail via Resend** (plano grátis) — ainda não existe nenhum serviço de e-mail configurado no projeto. Só é usado pelo caminho de e-mail+código; login via Google não depende disso.
 - **Limite de envio de código**: no máximo 1 pedido a cada 60 segundos e 5 por dia, por e-mail — evita abuso e estoura da cota grátis do Resend.
+- **Verificação do login Google feita no servidor**, nunca confiando só no que o app mobile alega: o app manda o `idToken` que o Google devolveu, e o backend valida esse token direto com o Google antes de criar a sessão.
+- **Pré-requisito externo**: um projeto no Google Cloud Console com OAuth configurado (client ID gratuito) — precisa ser criado antes de implementar este endpoint, do mesmo jeito que o Resend precisa de uma conta antes do endpoint de e-mail funcionar. Ambos ficam como pendência de configuração para a fase de implementação, não bloqueiam o desenho da API.
 - **API dentro do mesmo projeto Next.js**, sem servidor separado — Route Handlers em `src/app/api/mobile/**`, reaproveitando as funções que já existem em `src/lib/*.ts`. Nenhuma lógica de negócio duplicada.
 - **`generateCoupon`** (hoje uma Server Action que pega o usuário via `auth()`, cookie do site) precisa ser refatorada: o miolo (transação, checagem de estoque, elegibilidade da oferta) vira uma função interna que recebe `userId` como parâmetro; a Server Action do site e o endpoint mobile passam a chamar essa mesma função, cada um resolvendo o `userId` do seu próprio jeito (cookie vs. Bearer token).
+- **`User.passwordHash` precisa virar opcional.** Hoje é obrigatório no schema — mas contas criadas via Google ou e-mail+código não têm senha nenhuma. Muda pra `passwordHash String?` no schema, e o login por e-mail/senha do site (`authorize()` em `src/lib/auth.ts`) passa a rejeitar login se `passwordHash` for nulo (conta existe mas foi criada só pelo mobile, sem senha) — mensagem igual à de senha errada, pra não revelar que a conta existe mas não tem senha.
 
 ## Modelo de dados novo
 
@@ -64,7 +69,12 @@ O código nunca é guardado em texto puro (`codeHash`), nem o token (`tokenHash`
    - Código certo: marca `usedAt`. Se não existe `User` com esse e-mail, cria um novo (`role: CONSUMER`, `name` do body — obrigatório só nesse caso, valida com a mesma regra de nome já usada em `signUpConsumer`). Se existe mas está `blocked` → `{ok:false, error:'Conta bloqueada.'}`.
    - Cria uma `MobileSession` (`tokenHash` de um token aleatório gerado no servidor, `expiresAt = now + 60 dias`), devolve `{ok:true, token, user:{id,name,email}}`.
 
-3. **Toda outra rota protegida** lê `Authorization: Bearer <token>`, busca a `MobileSession` pelo hash do token: não existe, expirou, ou `revokedAt` preenchido → `401`, `{ok:false, error:'Sessão expirada.'}`. Também confirma `user.blocked === false` no mesmo request (mesma checagem "ao vivo" que já existe nas Server Actions do site) → `blocked` → `401` e marca a sessão como revogada nesse momento.
+3. **`POST /api/mobile/auth/google`** — body `{ idToken }` (o token que o app recebe do SDK de login do Google, ex: `expo-auth-session`/`@react-native-google-signin/google-signin`).
+   - Valida `idToken` direto com o Google (biblioteca `google-auth-library`, já usada por muitos projetos Next.js — verifica assinatura e público-alvo do token; nunca confia em dados que o app mande sem essa validação).
+   - Google confirma e-mail e nome. Se não existe `User` com esse e-mail, cria um novo (`role: CONSUMER`, `passwordHash: null`, nome/e-mail do Google). Se existe mas está `blocked` → `{ok:false, error:'Conta bloqueada.'}`.
+   - Cria uma `MobileSession` igual ao passo 2, devolve `{ok:true, token, user:{id,name,email}}`.
+
+4. **Toda outra rota protegida** lê `Authorization: Bearer <token>`, busca a `MobileSession` pelo hash do token: não existe, expirou, ou `revokedAt` preenchido → `401`, `{ok:false, error:'Sessão expirada.'}`. Também confirma `user.blocked === false` no mesmo request (mesma checagem "ao vivo" que já existe nas Server Actions do site) → `blocked` → `401` e marca a sessão como revogada nesse momento.
 
 ## Endpoints de dados
 
@@ -94,9 +104,10 @@ Localização do usuário (para ordenar por distância) vem do próprio app via 
 ## Testes
 
 - `src/lib/mobile-auth.ts` (nova lib): funções puras de geração/verificação de código e token, testadas isoladamente (hash bate, expiração, contagem de tentativas).
+- Teste do endpoint `/api/mobile/auth/google` com a verificação do `idToken` mockada (nunca chama o Google de verdade em teste) — cobre: token inválido, e-mail novo (cria conta), e-mail existente (loga), conta bloqueada.
 - Cada Route Handler ganha um teste de integração leve (request → resposta), reaproveitando o padrão de mocks já usado nas Server Actions do projeto.
 - Teste específico confirmando que o núcleo refatorado de `generateCoupon` produz o mesmo comportamento de antes quando chamado pela Server Action do site (nenhuma regressão no fluxo web).
 
 ## Interfaces que o próximo sub-projeto (app React Native) vai consumir
 
-Os 9 endpoints acima, mais o par `solicitar-codigo`/`confirmar-codigo`. O app guarda o `token` (ex: `expo-secure-store`) e manda em todo request subsequente.
+Os 9 endpoints de dados acima, mais os três de autenticação (`solicitar-codigo`, `confirmar-codigo`, `google`). O app guarda o `token` (ex: `expo-secure-store`) e manda em todo request subsequente.
