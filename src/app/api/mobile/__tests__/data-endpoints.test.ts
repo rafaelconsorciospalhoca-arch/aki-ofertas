@@ -1,0 +1,148 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { NextResponse } from 'next/server'
+import { parseLocationParams } from '@/lib/mobile-location'
+import { GET as getDestaque } from '@/app/api/mobile/ofertas/destaque/route'
+import { GET as getOfertas } from '@/app/api/mobile/ofertas/route'
+import { GET as getOferta } from '@/app/api/mobile/ofertas/[slug]/route'
+import { GET as getLoja } from '@/app/api/mobile/lojas/[slug]/route'
+import { GET as getCategorias } from '@/app/api/mobile/categorias/route'
+import { GET as getCidades } from '@/app/api/mobile/cidades/route'
+import { GET as getPerfil } from '@/app/api/mobile/perfil/route'
+import { getFeaturedOffers, getOffersList, getOfferBySlug } from '@/lib/offers'
+import { getBusinessBySlug } from '@/lib/businesses'
+import { getActiveCategories, getActiveCities } from '@/lib/categories'
+import { requireMobileUser } from '@/lib/mobile-session'
+import { prisma } from '@/lib/db'
+
+vi.mock('@/lib/offers', () => ({
+  getFeaturedOffers: vi.fn(),
+  getOffersList: vi.fn(),
+  getOfferBySlug: vi.fn(),
+}))
+vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn() }))
+vi.mock('@/lib/categories', () => ({ getActiveCategories: vi.fn(), getActiveCities: vi.fn() }))
+vi.mock('@/lib/mobile-session', () => ({ requireMobileUser: vi.fn() }))
+vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: vi.fn() } } }))
+
+describe('parseLocationParams', () => {
+  it('parses lat/lng when both are present', () => {
+    const result = parseLocationParams(new URLSearchParams('lat=-25.9&lng=-53.05'))
+    expect(result).toEqual({ location: { lat: -25.9, lng: -53.05 }, city: null })
+  })
+
+  it('parses cidade when there is no location', () => {
+    const result = parseLocationParams(new URLSearchParams('cidade=Marmeleiro|PR'))
+    expect(result).toEqual({ location: null, city: { name: 'Marmeleiro', state: 'PR' } })
+  })
+
+  it('prefers location over cidade when both are present', () => {
+    const result = parseLocationParams(new URLSearchParams('lat=-25.9&lng=-53.05&cidade=Marmeleiro|PR'))
+    expect(result.location).not.toBeNull()
+    expect(result.city).toBeNull()
+  })
+
+  it('returns nulls when neither is present', () => {
+    const result = parseLocationParams(new URLSearchParams())
+    expect(result).toEqual({ location: null, city: null })
+  })
+})
+
+describe('GET /api/mobile/ofertas/destaque', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns featured offers', async () => {
+    vi.mocked(getFeaturedOffers).mockResolvedValue([{ id: 'o1' }] as never)
+    const response = await getDestaque(new Request('https://example.com/api/mobile/ofertas/destaque?lat=-25.9&lng=-53.05'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: [{ id: 'o1' }] })
+    expect(getFeaturedOffers).toHaveBeenCalledWith({ location: { lat: -25.9, lng: -53.05 }, city: null, limit: 10 })
+  })
+})
+
+describe('GET /api/mobile/ofertas', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('passes categoria and raio through to getOffersList', async () => {
+    vi.mocked(getOffersList).mockResolvedValue([] as never)
+    const response = await getOfertas(new Request('https://example.com/api/mobile/ofertas?categoria=cat-1&raio=5'))
+    expect(response.status).toBe(200)
+    expect(getOffersList).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: 'cat-1', radiusKm: 5 }),
+    )
+  })
+})
+
+describe('GET /api/mobile/ofertas/[slug]', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns 404 when the offer does not exist', async () => {
+    vi.mocked(getOfferBySlug).mockResolvedValue(null)
+    const response = await getOferta(new Request('https://example.com/api/mobile/ofertas/nope'), { params: { slug: 'nope' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('returns the offer when it exists', async () => {
+    vi.mocked(getOfferBySlug).mockResolvedValue({ id: 'o1' } as never)
+    const response = await getOferta(new Request('https://example.com/api/mobile/ofertas/combo'), { params: { slug: 'combo' } })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: { id: 'o1' } })
+  })
+})
+
+describe('GET /api/mobile/lojas/[slug]', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns 404 when the business does not exist', async () => {
+    vi.mocked(getBusinessBySlug).mockResolvedValue(null)
+    const response = await getLoja(new Request('https://example.com/api/mobile/lojas/nope'), { params: { slug: 'nope' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('returns the business when it exists', async () => {
+    vi.mocked(getBusinessBySlug).mockResolvedValue({ id: 'b1' } as never)
+    const response = await getLoja(new Request('https://example.com/api/mobile/lojas/big-burger'), { params: { slug: 'big-burger' } })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: { id: 'b1' } })
+  })
+})
+
+describe('GET /api/mobile/categorias', () => {
+  it('returns active categories', async () => {
+    vi.mocked(getActiveCategories).mockResolvedValue([{ id: 'c1' }] as never)
+    const response = await getCategorias()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: [{ id: 'c1' }] })
+  })
+})
+
+describe('GET /api/mobile/cidades', () => {
+  it('returns active cities', async () => {
+    vi.mocked(getActiveCities).mockResolvedValue([{ id: 'ci1' }] as never)
+    const response = await getCidades()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: [{ id: 'ci1' }] })
+  })
+})
+
+describe('GET /api/mobile/perfil', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns the 401 from requireMobileUser when unauthenticated', async () => {
+    const unauthorized = NextResponse.json({ ok: false, error: 'Sessão expirada.' }, { status: 401 })
+    vi.mocked(requireMobileUser).mockResolvedValue(unauthorized)
+
+    const response = await getPerfil(new Request('https://example.com/api/mobile/perfil'))
+    expect(response.status).toBe(401)
+  })
+
+  it('returns the profile for the authenticated user', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro' } as never)
+
+    const response = await getPerfil(new Request('https://example.com/api/mobile/perfil'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      ok: true, data: { id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro' },
+    })
+  })
+})
