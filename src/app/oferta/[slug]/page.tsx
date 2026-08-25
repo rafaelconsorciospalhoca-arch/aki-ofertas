@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getOfferBySlug } from '@/lib/offers'
+import { getCouponForOffer, getCouponsCountForOffer } from '@/lib/coupons'
+import { auth } from '@/lib/auth'
 import { formatCents } from '@/components/offers/OfferCard'
+import { GenerateCouponButton } from '@/components/offers/GenerateCouponButton'
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('pt-BR')
@@ -13,6 +16,14 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
   if (!offer) {
     notFound()
   }
+
+  const session = await auth()
+  const soldOut =
+    offer.quantityAvailable !== null &&
+    (await getCouponsCountForOffer(offer.id)) >= offer.quantityAvailable
+  const existingCoupon = session?.user
+    ? await getCouponForOffer(session.user.id as string, offer.id)
+    : null
 
   return (
     <div className="flex min-h-screen flex-col pb-24">
@@ -75,17 +86,20 @@ export default async function OfertaPage({ params }: { params: { slug: string } 
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-200 bg-white p-4">
-        <button
-          type="button"
-          disabled
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-200 px-4 py-3 text-sm font-bold text-neutral-500"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="h-4 w-4">
-            <rect x="3" y="6" width="18" height="13" rx="2" />
-            <path d="M3 10h18" />
-          </svg>
-          Usar cupom (em breve)
-        </button>
+        {session?.user ? (
+          <GenerateCouponButton
+            offerId={offer.id}
+            initialCoupon={existingCoupon ? { code: existingCoupon.code } : null}
+            soldOut={soldOut}
+          />
+        ) : (
+          <Link
+            href={`/entrar?callbackUrl=/oferta/${params.slug}`}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-green px-4 py-3 text-sm font-bold text-white"
+          >
+            Entrar para gerar cupom
+          </Link>
+        )}
       </div>
     </div>
   )
