@@ -69,6 +69,7 @@ export async function getFeaturedOffers(input: {
       status: 'ACTIVE',
       business: {
         status: 'ACTIVE',
+        owner: { blocked: false },
         ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
       },
       startDate: { lte: new Date() },
@@ -99,6 +100,7 @@ export async function getOffersList(input: {
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
       business: {
         status: 'ACTIVE',
+        owner: { blocked: false },
         ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
       },
       startDate: { lte: new Date() },
@@ -145,11 +147,11 @@ export type OfferDetail = {
 export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> {
   const row = await prisma.offer.findUnique({
     where: { slug },
-    include: { business: true },
+    include: { business: { include: { owner: true } } },
   })
 
   if (!row) return null
-  if (row.business.status !== 'ACTIVE') return null
+  if (row.business.status !== 'ACTIVE' || row.business.owner.blocked) return null
 
   const now = new Date()
   if (row.startDate > now || row.endDate < now) return null

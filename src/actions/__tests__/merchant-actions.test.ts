@@ -131,9 +131,23 @@ describe('updateBusiness', () => {
     expect(result).toEqual({ ok: false, error: 'Empresa não encontrada.' })
   })
 
+  it('rejects when the owner account is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1',
+      owner: { id: 'u1', blocked: true },
+    } as never)
+
+    const result = await updateBusiness(validBusinessInput)
+    expect(result).toEqual({ ok: false, error: 'Empresa não encontrada.' })
+  })
+
   it('updates the business owned by this user, uppercasing the state', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1',
+      owner: { id: 'u1', blocked: false },
+    } as never)
     vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
 
     const result = await updateBusiness(validBusinessInput)

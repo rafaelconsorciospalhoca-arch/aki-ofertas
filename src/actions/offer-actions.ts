@@ -26,7 +26,16 @@ async function requireMerchantBusiness() {
   if (!session?.user || (session.user as { role?: string }).role !== 'MERCHANT') {
     return null
   }
-  return prisma.business.findFirst({ where: { ownerId: session.user.id as string } })
+
+  const business = await prisma.business.findFirst({
+    where: { ownerId: session.user.id as string },
+    include: { owner: true },
+  })
+  if (!business || business.owner.blocked) {
+    return null
+  }
+
+  return business
 }
 
 export async function createOffer(input: OfferActionInput): Promise<OfferResult> {

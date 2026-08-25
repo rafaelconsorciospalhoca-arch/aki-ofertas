@@ -16,6 +16,10 @@ vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
 }))
 
+const activeAdmin = { id: 'u1', role: 'ADMIN', blocked: false }
+const blockedAdmin = { id: 'u1', role: 'ADMIN', blocked: true }
+const activeMerchant = { id: 'u1', role: 'MERCHANT', blocked: false }
+
 describe('updateBusinessStatus', () => {
   afterEach(() => {
     vi.clearAllMocks()
@@ -29,12 +33,22 @@ describe('updateBusinessStatus', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeMerchant as never)
+    const result = await updateBusinessStatus('biz-1', 'ACTIVE')
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the acting admin is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(blockedAdmin as never)
+
     const result = await updateBusinessStatus('biz-1', 'ACTIVE')
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects an invalid status value', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     // @ts-expect-error deliberately invalid for the test
     const result = await updateBusinessStatus('biz-1', 'NOT_A_STATUS')
     expect(result).toEqual({ ok: false, error: 'Status inválido.' })
@@ -42,6 +56,7 @@ describe('updateBusinessStatus', () => {
 
   it('rejects when the business does not exist', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue(null as never)
 
     const result = await updateBusinessStatus('biz-1', 'ACTIVE')
@@ -50,6 +65,7 @@ describe('updateBusinessStatus', () => {
 
   it('updates the business status when the admin and business are valid', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
     vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
 
@@ -72,18 +88,28 @@ describe('createCategory', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeMerchant as never)
+    const result = await createCategory(validCategoryInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the acting admin is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(blockedAdmin as never)
     const result = await createCategory(validCategoryInput)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects an invalid name', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     const result = await createCategory({ ...validCategoryInput, name: 'P' })
     expect(result).toEqual({ ok: false, error: 'Informe o nome da categoria.' })
   })
 
   it('rejects an invalid order', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
 
     const result = await createCategory({ ...validCategoryInput, order: 'abc' })
@@ -92,6 +118,7 @@ describe('createCategory', () => {
 
   it('rejects a duplicate category name', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'existing' } as never)
 
     const result = await createCategory(validCategoryInput)
@@ -100,6 +127,7 @@ describe('createCategory', () => {
 
   it('creates the category when input is valid and the name is free', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
     vi.mocked(prisma.category.create).mockResolvedValue({ id: 'cat-1' } as never)
 
@@ -119,12 +147,14 @@ describe('updateCategory', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeMerchant as never)
     const result = await updateCategory('cat-1', validCategoryInput)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects when the category does not exist', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
 
     const result = await updateCategory('cat-1', validCategoryInput)
@@ -133,6 +163,7 @@ describe('updateCategory', () => {
 
   it('updates the category when it exists', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'cat-1' } as never)
     vi.mocked(prisma.category.update).mockResolvedValue({ id: 'cat-1' } as never)
 
@@ -155,18 +186,21 @@ describe('createCity', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeMerchant as never)
     const result = await createCity(validCityInput)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects a state that is not a 2-letter code', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     const result = await createCity({ ...validCityInput, state: 'Parana' })
     expect(result).toEqual({ ok: false, error: 'Use a sigla do estado (ex: PR).' })
   })
 
   it('rejects a duplicate name+state combination', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'existing' } as never)
 
     const result = await createCity(validCityInput)
@@ -175,6 +209,7 @@ describe('createCity', () => {
 
   it('creates the city, uppercasing the state', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.city.findFirst).mockResolvedValue(null as never)
     vi.mocked(prisma.city.create).mockResolvedValue({ id: 'city-1' } as never)
 
@@ -194,6 +229,7 @@ describe('updateCity', () => {
 
   it('rejects when the city does not exist', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.city.findUnique).mockResolvedValue(null as never)
 
     const result = await updateCity('city-1', validCityInput)
@@ -202,6 +238,7 @@ describe('updateCity', () => {
 
   it('updates the city when it exists', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
     vi.mocked(prisma.city.findUnique).mockResolvedValue({ id: 'city-1' } as never)
     vi.mocked(prisma.city.update).mockResolvedValue({ id: 'city-1' } as never)
 
@@ -215,6 +252,15 @@ describe('updateCity', () => {
   })
 })
 
+// Helper: `requireAdmin()` and the target-user lookup inside `toggleUserBlocked`/
+// `updateUser` both call `prisma.user.findUnique`, keyed by different ids
+// (the acting admin's id vs. the target user's id). Route the shared mock by id
+// so both calls resolve independently within the same test.
+function mockUsersById(users: Record<string, unknown>) {
+  vi.mocked(prisma.user.findUnique).mockImplementation(((args: { where: { id: string } }) =>
+    Promise.resolve(users[args.where.id] ?? null)) as never)
+}
+
 describe('toggleUserBlocked', () => {
   afterEach(() => {
     vi.clearAllMocks()
@@ -222,13 +268,21 @@ describe('toggleUserBlocked', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'MERCHANT' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'MERCHANT', blocked: false } })
+    const result = await toggleUserBlocked('user-2', true)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the acting admin is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: true } })
     const result = await toggleUserBlocked('user-2', true)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects when the target user does not exist', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
 
     const result = await toggleUserBlocked('user-2', true)
     expect(result).toEqual({ ok: false, error: 'Usuário não encontrado.' })
@@ -236,7 +290,7 @@ describe('toggleUserBlocked', () => {
 
   it('rejects an admin trying to block their own account', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'admin-1' } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
 
     const result = await toggleUserBlocked('admin-1', true)
     expect(result).toEqual({ ok: false, error: 'Você não pode bloquear sua própria conta.' })
@@ -244,7 +298,10 @@ describe('toggleUserBlocked', () => {
 
   it('blocks a different user successfully', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-2' } as never)
+    mockUsersById({
+      'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false },
+      'user-2': { id: 'user-2' },
+    })
     vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
 
     const result = await toggleUserBlocked('user-2', true)
@@ -255,7 +312,7 @@ describe('toggleUserBlocked', () => {
 
   it('allows unblocking, including targeting the admin\'s own account', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'admin-1' } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
     vi.mocked(prisma.user.update).mockResolvedValue({ id: 'admin-1' } as never)
 
     const result = await toggleUserBlocked('admin-1', false)
@@ -274,19 +331,28 @@ describe('updateUser', () => {
 
   it('rejects when the session role is not ADMIN', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'CONSUMER' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'CONSUMER', blocked: false } })
+    const result = await updateUser('user-2', validUserInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the acting admin is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: true } })
     const result = await updateUser('user-2', validUserInput)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
   it('rejects an invalid name', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
     const result = await updateUser('user-2', { ...validUserInput, name: 'R' })
     expect(result).toEqual({ ok: false, error: 'Informe o nome.' })
   })
 
   it('rejects when the user does not exist', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
 
     const result = await updateUser('user-2', validUserInput)
     expect(result).toEqual({ ok: false, error: 'Usuário não encontrado.' })
@@ -294,7 +360,10 @@ describe('updateUser', () => {
 
   it('updates the user when it exists', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-2' } as never)
+    mockUsersById({
+      'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false },
+      'user-2': { id: 'user-2' },
+    })
     vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
 
     const result = await updateUser('user-2', validUserInput)
