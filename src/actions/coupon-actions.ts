@@ -40,8 +40,10 @@ export async function generateCoupon(offerId: string): Promise<CouponResult> {
   if (!session?.user) {
     return { ok: false, error: 'Não autorizado.' }
   }
-  const userId = session.user.id as string
+  return generateCouponForUser(session.user.id as string, offerId)
+}
 
+export async function generateCouponForUser(userId: string, offerId: string): Promise<CouponResult> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       // Serializable so that Postgres itself rejects concurrent transactions whose
