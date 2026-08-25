@@ -1,8 +1,7 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
     from: 'Aki Ofertas <login@akiofertas.com.br>',
     to: email,
