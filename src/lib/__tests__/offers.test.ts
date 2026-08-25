@@ -8,9 +8,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE' }
-const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733, status: 'ACTIVE' }
-const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING' }
+const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: false } }
+const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733, status: 'ACTIVE', owner: { blocked: false } }
+const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING', owner: { blocked: false } }
+const blockedOwnerBusiness = { id: 'biz-4', name: 'Blocked Bakery', slug: 'blocked-bakery', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: true } }
 
 const nearOffer = {
   id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', imageUrl: null,
@@ -30,16 +31,26 @@ const pendingOffer = {
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
   business: pendingBusiness,
 }
+const blockedOwnerOffer = {
+  id: 'offer-4', slug: 'blocked-bakery-combo', title: 'Combo Padaria', imageUrl: null,
+  originalPrice: 3990, discountPrice: 2990, discountPercent: 25, createdAt: new Date('2026-01-04'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
+  business: blockedOwnerBusiness,
+}
 
-const allOffers = [nearOffer, farOffer, pendingOffer]
+const allOffers = [nearOffer, farOffer, pendingOffer, blockedOwnerOffer]
 
 // Simulates Prisma applying the `where` clause server-side, so tests can prove
-// the query actually excludes non-ACTIVE businesses / non-matching cities end-to-end.
-function fakeFindMany(args: { where: { business: { status: string; city?: string; state?: string } } }) {
+// the query actually excludes non-ACTIVE businesses / blocked owners / non-matching
+// cities end-to-end.
+function fakeFindMany(args: {
+  where: { business: { status: string; owner?: { blocked: boolean }; city?: string; state?: string } }
+}) {
   const { where } = args
   return Promise.resolve(
     allOffers.filter((offer) => {
       if (offer.business.status !== where.business.status) return false
+      if (where.business.owner && offer.business.owner.blocked !== where.business.owner.blocked) return false
       if (where.business.city && offer.business.city !== where.business.city) return false
       if (where.business.state && offer.business.state !== where.business.state) return false
       return true
@@ -89,7 +100,7 @@ describe('getFeaturedOffers', () => {
       expect.objectContaining({
         where: {
           status: 'ACTIVE',
-          business: { status: 'ACTIVE' },
+          business: { status: 'ACTIVE', owner: { blocked: false } },
           startDate: expect.objectContaining({ lte: expect.any(Date) }),
           endDate: expect.objectContaining({ gte: expect.any(Date) }),
         },
@@ -124,6 +135,15 @@ describe('getFeaturedOffers', () => {
 
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
+
+  it('excludes offers whose business owner is blocked, even though the business is ACTIVE', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getFeaturedOffers({ location: null, limit: 10 })
+
+    expect(result.map((o) => o.slug)).not.toContain('blocked-bakery-combo')
+    expect(result.map((o) => o.slug).sort()).toEqual(['combo-burguer', 'pizza-grande'])
+  })
 })
 
 describe('getOffersList', () => {
@@ -141,7 +161,7 @@ describe('getOffersList', () => {
         where: {
           status: 'ACTIVE',
           categoryId: 'cat-1',
-          business: { status: 'ACTIVE' },
+          business: { status: 'ACTIVE', owner: { blocked: false } },
           startDate: expect.objectContaining({ lte: expect.any(Date) }),
           endDate: expect.objectContaining({ gte: expect.any(Date) }),
         },
@@ -200,6 +220,15 @@ describe('getOffersList', () => {
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 
+  it('excludes offers whose business owner is blocked, even though the business is ACTIVE', async () => {
+    vi.mocked(prisma.offer.findMany).mockImplementation(fakeFindMany as never)
+
+    const result = await getOffersList({ location: null })
+
+    expect(result.map((o) => o.slug)).not.toContain('blocked-bakery-combo')
+    expect(result.map((o) => o.slug).sort()).toEqual(['combo-burguer', 'pizza-grande'])
+  })
+
   it('excludes offers outside their active date window', async () => {
     const expiredOffer = {
       ...nearOffer,
@@ -241,10 +270,23 @@ describe('getOfferBySlug', () => {
       id: 'offer-3', slug: 'sushi-combo', title: 'Combo Sushi', description: null,
       imageUrl: null, originalPrice: 6990, discountPrice: 4990, discountPercent: 28,
       quantityAvailable: null, startDate: new Date('2026-01-01'), endDate: new Date('2026-02-01'),
-      business: { name: 'Pending Sushi', slug: 'pending-sushi', whatsapp: null, city: 'Marmeleiro', state: 'PR', status: 'PENDING' },
+      business: { name: 'Pending Sushi', slug: 'pending-sushi', whatsapp: null, city: 'Marmeleiro', state: 'PR', status: 'PENDING', owner: { blocked: false } },
     } as never)
 
     const result = await getOfferBySlug('sushi-combo')
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the found offer\'s business owner is blocked, even though the business is ACTIVE', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue({
+      id: 'offer-4', slug: 'blocked-bakery-combo', title: 'Combo Padaria', description: null,
+      imageUrl: null, originalPrice: 3990, discountPrice: 2990, discountPercent: 25,
+      quantityAvailable: null, startDate: new Date('2026-01-01'), endDate: new Date('2026-02-01'),
+      business: { name: 'Blocked Bakery', slug: 'blocked-bakery', whatsapp: null, city: 'Marmeleiro', state: 'PR', status: 'ACTIVE', owner: { blocked: true } },
+    } as never)
+
+    const result = await getOfferBySlug('blocked-bakery-combo')
 
     expect(result).toBeNull()
   })
@@ -254,7 +296,7 @@ describe('getOfferBySlug', () => {
       id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', description: 'Pão, carne e queijo.',
       imageUrl: null, originalPrice: 4290, discountPrice: 2990, discountPercent: 30,
       quantityAvailable: null, startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-      business: { name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE' },
+      business: { name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE', owner: { blocked: false } },
     } as never)
 
     const result = await getOfferBySlug('combo-burguer')

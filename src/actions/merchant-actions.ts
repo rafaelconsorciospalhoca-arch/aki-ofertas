@@ -106,8 +106,11 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
     return { ok: false, error: parsed.error.issues[0].message }
   }
 
-  const business = await prisma.business.findFirst({ where: { ownerId: session.user.id as string } })
-  if (!business) {
+  const business = await prisma.business.findFirst({
+    where: { ownerId: session.user.id as string },
+    include: { owner: { select: { blocked: true } } },
+  })
+  if (!business || business.owner.blocked) {
     return { ok: false, error: 'Empresa não encontrada.' }
   }
 

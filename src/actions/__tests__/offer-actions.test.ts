@@ -23,6 +23,9 @@ const validInput = {
   endDate: '2026-02-01',
 }
 
+const unblockedBusiness = { id: 'biz-1', owner: { id: 'u1', blocked: false } }
+const blockedOwnerBusiness = { id: 'biz-1', owner: { id: 'u1', blocked: true } }
+
 describe('createOffer', () => {
   afterEach(() => {
     vi.clearAllMocks()
@@ -40,9 +43,17 @@ describe('createOffer', () => {
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
+  it('rejects when the merchant owner account is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(blockedOwnerBusiness as never)
+
+    const result = await createOffer(validInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
   it('rejects invalid pricing', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
 
     const result = await createOffer({ ...validInput, discountPrice: '50.00' })
     expect(result).toEqual({ ok: false, error: 'O preço promocional precisa ser menor que o preço original.' })
@@ -50,7 +61,7 @@ describe('createOffer', () => {
 
   it('creates the offer under the merchant business with a generated slug', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
     vi.mocked(prisma.offer.create).mockResolvedValue({ id: 'offer-1' } as never)
 
     const result = await createOffer(validInput)
@@ -69,9 +80,17 @@ describe('updateOffer', () => {
     vi.clearAllMocks()
   })
 
+  it('rejects when the merchant owner account is blocked', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(blockedOwnerBusiness as never)
+
+    const result = await updateOffer('offer-1', validInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
   it('rejects when the offer does not belong to the merchant business', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
     vi.mocked(prisma.offer.findFirst).mockResolvedValue(null as never)
 
     const result = await updateOffer('offer-2', validInput)
@@ -80,7 +99,7 @@ describe('updateOffer', () => {
 
   it('updates the offer when it belongs to the merchant business', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
     vi.mocked(prisma.offer.findFirst).mockResolvedValue({ id: 'offer-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.offer.update).mockResolvedValue({ id: 'offer-1' } as never)
 
@@ -98,7 +117,7 @@ describe('cancelOffer', () => {
 
   it('rejects when the offer does not belong to the merchant business', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
     vi.mocked(prisma.offer.findFirst).mockResolvedValue(null as never)
 
     const result = await cancelOffer('offer-2')
@@ -107,7 +126,7 @@ describe('cancelOffer', () => {
 
   it('marks the offer CANCELLED when it belongs to the merchant business', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
-    vi.mocked(prisma.business.findFirst).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(unblockedBusiness as never)
     vi.mocked(prisma.offer.findFirst).mockResolvedValue({ id: 'offer-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.offer.update).mockResolvedValue({ id: 'offer-1' } as never)
 

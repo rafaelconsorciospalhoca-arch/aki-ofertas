@@ -6,7 +6,12 @@ import { auth } from '@/lib/auth'
 
 async function requireAdmin(): Promise<boolean> {
   const session = await auth()
-  return Boolean(session?.user) && (session!.user as { role?: string }).role === 'ADMIN'
+  if (!session?.user?.id) {
+    return false
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+  return Boolean(user) && user!.role === 'ADMIN' && !user!.blocked
 }
 
 const businessStatusSchema = z.enum(['ACTIVE', 'SUSPENDED', 'REJECTED'])
@@ -169,6 +174,69 @@ export async function updateCity(
       state: parsed.data.state.toUpperCase(),
       active: parsed.data.active,
       comingSoon: parsed.data.comingSoon,
+    },
+  })
+
+  return { ok: true }
+}
+
+export async function toggleUserBlocked(
+  userId: string,
+  blocked: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const session = await auth()
+  const target = await prisma.user.findUnique({ where: { id: userId } })
+  if (!target) {
+    return { ok: false, error: 'Usuário não encontrado.' }
+  }
+
+  if (blocked && target.id === session?.user?.id) {
+    return { ok: false, error: 'Você não pode bloquear sua própria conta.' }
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { blocked } })
+
+  return { ok: true }
+}
+
+const userProfileSchema = z.object({
+  name: z.string().min(2, 'Informe o nome.'),
+  phone: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+})
+
+type UserProfileInput = z.infer<typeof userProfileSchema>
+
+export async function updateUser(
+  userId: string,
+  input: UserProfileInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = userProfileSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const existing = await prisma.user.findUnique({ where: { id: userId } })
+  if (!existing) {
+    return { ok: false, error: 'Usuário não encontrado.' }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: parsed.data.name,
+      phone: parsed.data.phone || null,
+      city: parsed.data.city || null,
+      state: parsed.data.state || null,
     },
   })
 
