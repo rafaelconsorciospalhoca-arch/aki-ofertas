@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity } from '@/actions/admin-actions'
+import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -8,6 +8,7 @@ vi.mock('@/lib/db', () => ({
     business: { findUnique: vi.fn(), update: vi.fn() },
     category: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     city: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn(), update: vi.fn() },
   },
 }))
 
@@ -210,6 +211,98 @@ describe('updateCity', () => {
     expect(prisma.city.update).toHaveBeenCalledWith({
       where: { id: 'city-1' },
       data: { name: 'Curitiba', state: 'PR', active: true, comingSoon: false },
+    })
+  })
+})
+
+describe('toggleUserBlocked', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the session role is not ADMIN', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'MERCHANT' } } as never)
+    const result = await toggleUserBlocked('user-2', true)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the target user does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never)
+
+    const result = await toggleUserBlocked('user-2', true)
+    expect(result).toEqual({ ok: false, error: 'Usuário não encontrado.' })
+  })
+
+  it('rejects an admin trying to block their own account', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'admin-1' } as never)
+
+    const result = await toggleUserBlocked('admin-1', true)
+    expect(result).toEqual({ ok: false, error: 'Você não pode bloquear sua própria conta.' })
+  })
+
+  it('blocks a different user successfully', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-2' } as never)
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
+
+    const result = await toggleUserBlocked('user-2', true)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-2' }, data: { blocked: true } })
+  })
+
+  it('allows unblocking, including targeting the admin\'s own account', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'admin-1' } as never)
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: 'admin-1' } as never)
+
+    const result = await toggleUserBlocked('admin-1', false)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'admin-1' }, data: { blocked: false } })
+  })
+})
+
+const validUserInput = { name: 'Rafael Souza', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' }
+
+describe('updateUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when the session role is not ADMIN', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'CONSUMER' } } as never)
+    const result = await updateUser('user-2', validUserInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects an invalid name', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    const result = await updateUser('user-2', { ...validUserInput, name: 'R' })
+    expect(result).toEqual({ ok: false, error: 'Informe o nome.' })
+  })
+
+  it('rejects when the user does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never)
+
+    const result = await updateUser('user-2', validUserInput)
+    expect(result).toEqual({ ok: false, error: 'Usuário não encontrado.' })
+  })
+
+  it('updates the user when it exists', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-2' } as never)
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
+
+    const result = await updateUser('user-2', validUserInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+      data: { name: 'Rafael Souza', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' },
     })
   })
 })
