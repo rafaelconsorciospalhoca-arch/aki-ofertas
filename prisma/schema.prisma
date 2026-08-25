@@ -38,16 +38,17 @@ model User {
   name         String
   email        String   @unique
   phone        String?
-  passwordHash String
+  passwordHash String?
   role         Role     @default(CONSUMER)
   blocked      Boolean  @default(false)
   city         String?
   state        String?
   createdAt    DateTime @default(now())
 
-  businesses Business[]
-  coupons    Coupon[]
-  favorites  Favorite[]
+  businesses     Business[]
+  coupons        Coupon[]
+  favorites      Favorite[]
+  mobileSessions MobileSession[]
 
   @@map("users")
 }
@@ -223,4 +224,30 @@ model AnalyticsEvent {
   createdAt  DateTime @default(now())
 
   @@map("analytics_events")
+}
+
+model EmailOtp {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@map("email_otps")
+}
+
+model MobileSession {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@map("mobile_sessions")
 }
