@@ -10,24 +10,22 @@ import { apiFetch, ApiError } from '@/api/client'
 
 WebBrowser.maybeCompleteAuthSession()
 
-type Step = 'options' | 'email' | 'code'
+type Step = 'options' | 'form'
 
 export default function EntrarScreen() {
   const { login } = useAuth()
   const [step, setStep] = useState<Step>('options')
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [phone, setPhone] = useState('')
-  const [needsProfile, setNeedsProfile] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
   // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
-  // derrubaria a tela inteira (inclusive o fluxo de e-mail + código).
+  // derrubaria a tela inteira (inclusive o fluxo de e-mail).
   const googleConfigured = Boolean(
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
       process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
@@ -65,30 +63,16 @@ export default function EntrarScreen() {
     }
   }
 
-  async function handleRequestCode() {
-    setPending(true)
-    setError(null)
-    try {
-      await apiFetch('/auth/solicitar-codigo', { method: 'POST', body: { email } })
-      setStep('code')
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o código.')
-    } finally {
-      setPending(false)
-    }
-  }
-
-  async function handleConfirmCode() {
+  async function handleSubmit() {
     setPending(true)
     setError(null)
     try {
       const result = await apiFetch<{ token: string; user: { id: string; name: string; email: string } }>(
-        '/auth/confirmar-codigo',
+        '/auth/entrar',
         {
           method: 'POST',
           body: {
             email,
-            code,
             name: name || undefined,
             city: city || undefined,
             state: state || undefined,
@@ -99,13 +83,7 @@ export default function EntrarScreen() {
       await login(result.token, result.user)
       router.back()
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.'
-      if (message === 'Informe seus dados para continuar.') {
-        setNeedsProfile(true)
-        setError(null)
-      } else {
-        setError(message)
-      }
+      setError(err instanceof ApiError ? err.message : 'Não foi possível entrar.')
     } finally {
       setPending(false)
     }
@@ -129,15 +107,15 @@ export default function EntrarScreen() {
           {!googleConfigured && (
             <Text style={styles.subtitle}>Entrar com Google ainda não está disponível.</Text>
           )}
-          <Pressable onPress={() => setStep('email')}>
+          <Pressable onPress={() => setStep('form')}>
             <Text style={styles.linkText}>Cadastro normal</Text>
           </Pressable>
         </>
       )}
 
-      {step === 'email' && (
+      {step === 'form' && (
         <>
-          <Text style={styles.title}>Digite seu e-mail</Text>
+          <Text style={styles.title}>Seus dados</Text>
           {error && <Text style={styles.error}>{error}</Text>}
           <TextInput
             style={styles.input}
@@ -147,52 +125,29 @@ export default function EntrarScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          <Pressable style={styles.primaryButton} onPress={handleRequestCode} disabled={pending || !email}>
-            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Enviar código</Text>}
-          </Pressable>
-        </>
-      )}
-
-      {step === 'code' && (
-        <>
-          <Text style={styles.title}>Digite o código</Text>
-          <Text style={styles.subtitle}>Enviamos um código de 6 dígitos para {email}</Text>
-          {error && <Text style={styles.error}>{error}</Text>}
+          <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
+          <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
           <TextInput
             style={styles.input}
-            placeholder="000000"
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            maxLength={6}
+            placeholder="Estado (ex: PR)"
+            value={state}
+            onChangeText={setState}
+            autoCapitalize="characters"
+            maxLength={2}
           />
-          {needsProfile && (
-            <>
-              <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
-              <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
-              <TextInput
-                style={styles.input}
-                placeholder="Estado (ex: PR)"
-                value={state}
-                onChangeText={setState}
-                autoCapitalize="characters"
-                maxLength={2}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Telefone (com DDD)"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            </>
-          )}
+          <TextInput
+            style={styles.input}
+            placeholder="Telefone (com DDD)"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
           <Pressable
             style={styles.primaryButton}
-            onPress={handleConfirmCode}
-            disabled={pending || !code || (needsProfile && (!name || !city || !state || !phone))}
+            onPress={handleSubmit}
+            disabled={pending || !email || !name || !city || !state || !phone}
           >
-            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Confirmar</Text>}
+            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
           </Pressable>
         </>
       )}
