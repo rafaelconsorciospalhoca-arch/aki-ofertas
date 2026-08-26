@@ -3,7 +3,7 @@ import { View, Text, Image, TextInput, FlatList, ActivityIndicator, StyleSheet, 
 import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
-import { FeaturedOfferCard } from '@/components/FeaturedOfferCard'
+import { FeaturedCarousel } from '@/components/FeaturedCarousel'
 import { BusinessCard } from '@/components/BusinessCard'
 import { CategoryGrid } from '@/components/CategoryGrid'
 import { useFeaturedOffers } from '@/api/hooks/useFeaturedOffers'
@@ -25,6 +25,8 @@ function firstName(name: string): string {
 }
 
 type ResultRow = { key: string } & ({ kind: 'offer'; offer: OfferListItem } | { kind: 'business'; business: BusinessSummary })
+
+const CAROUSEL_COUNT = 5
 
 export default function InicioScreen() {
   const [location, setLocation] = useState<StoredLocation | null>(null)
@@ -102,14 +104,17 @@ export default function InicioScreen() {
               <Text style={styles.seeAllText}>Ver todas</Text>
             </Pressable>
           </View>
+          <FeaturedCarousel offers={(offers.data ?? []).slice(0, CAROUSEL_COUNT)} />
           {offers.isLoading && <ActivityIndicator color={colors.green} style={{ marginTop: 16 }} />}
         </View>
       }
-      renderItem={({ item, index }) => (
-        <View style={styles.cardWrapper}>
-          {index === 0 ? <FeaturedOfferCard offer={item} /> : <OfferCard offer={item} />}
-        </View>
-      )}
+      renderItem={({ item, index }) =>
+        index < CAROUSEL_COUNT ? null : (
+          <View style={styles.cardWrapper}>
+            <OfferCard offer={item} />
+          </View>
+        )
+      }
       ListEmptyComponent={
         !offers.isLoading ? <Text style={styles.emptyText}>Nenhuma oferta em destaque por aqui ainda.</Text> : null
       }
