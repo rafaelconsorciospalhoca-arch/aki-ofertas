@@ -60,6 +60,8 @@ model City {
   active     Boolean @default(true)
   comingSoon Boolean @default(false)
 
+  businesses Business[] @relation("BusinessServiceCities")
+
   @@unique([name, state])
   @@map("cities")
 }
@@ -114,6 +116,7 @@ model Business {
   favorites       Favorite[]
   subscriptions   Subscription[]
   analyticsEvents AnalyticsEvent[]
+  serviceCities   City[]           @relation("BusinessServiceCities")
 
   @@map("businesses")
 }

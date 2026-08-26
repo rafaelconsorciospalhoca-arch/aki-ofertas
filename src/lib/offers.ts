@@ -70,7 +70,7 @@ export async function getFeaturedOffers(input: {
       business: {
         status: 'ACTIVE',
         owner: { blocked: false },
-        ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
+        ...(input.city ? { serviceCities: { some: { name: input.city.name, state: input.city.state } } } : {}),
       },
       startDate: { lte: new Date() },
       endDate: { gte: new Date() },
@@ -103,7 +103,7 @@ export async function getOffersList(input: {
       business: {
         status: 'ACTIVE',
         owner: { blocked: false },
-        ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
+        ...(input.city ? { serviceCities: { some: { name: input.city.name, state: input.city.state } } } : {}),
       },
       startDate: { lte: new Date() },
       endDate: { gte: new Date() },

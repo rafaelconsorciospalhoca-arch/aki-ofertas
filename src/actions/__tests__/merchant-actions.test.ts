@@ -7,6 +7,7 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     plan: { findUnique: vi.fn() },
+    city: { findFirst: vi.fn() },
     business: { findFirst: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -66,6 +67,7 @@ describe('signUpMerchant', () => {
   it('creates the owner and business, uppercasing the state and hashing the password', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-free', name: 'Grátis' } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'city-1', name: 'Marmeleiro', state: 'PR' } as never)
 
     const userCreate = vi.fn().mockResolvedValue({ id: 'user-1' })
     const businessCreate = vi.fn().mockResolvedValue({ id: 'biz-1' })
@@ -89,6 +91,7 @@ describe('signUpMerchant', () => {
     expect(businessData.status).toBe('PENDING')
     expect(businessData.planId).toBe('plan-free')
     expect((businessData.slug as string).startsWith('pizza-boa-')).toBe(true)
+    expect(businessData.serviceCities).toEqual({ connect: { id: 'city-1' } })
   })
 })
 
@@ -149,6 +152,7 @@ describe('updateBusiness', () => {
       owner: { id: 'u1', blocked: false },
     } as never)
     vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'city-1', name: 'Marmeleiro', state: 'PR' } as never)
 
     const result = await updateBusiness(validBusinessInput)
 
@@ -156,8 +160,24 @@ describe('updateBusiness', () => {
     expect(prisma.business.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'biz-1' },
-        data: expect.objectContaining({ name: 'Pizza Boa', state: 'PR' }),
+        data: expect.objectContaining({ name: 'Pizza Boa', state: 'PR', serviceCities: { set: [{ id: 'city-1' }] } }),
       }),
     )
+  })
+
+  it('keeps the merchant-selected extra cities and still includes the primary city', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1',
+      owner: { id: 'u1', blocked: false },
+    } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'city-1', name: 'Marmeleiro', state: 'PR' } as never)
+
+    const result = await updateBusiness({ ...validBusinessInput, serviceCityIds: ['city-2', 'city-1'] })
+
+    expect(result).toEqual({ ok: true })
+    const data = vi.mocked(prisma.business.update).mock.calls[0][0].data as { serviceCities: { set: { id: string }[] } }
+    expect(data.serviceCities.set.map((c) => c.id).sort()).toEqual(['city-1', 'city-2'])
   })
 })

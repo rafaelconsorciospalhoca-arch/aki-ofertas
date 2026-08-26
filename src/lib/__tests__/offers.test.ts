@@ -8,10 +8,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: false } }
-const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733, status: 'ACTIVE', owner: { blocked: false } }
-const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING', owner: { blocked: false } }
-const blockedOwnerBusiness = { id: 'biz-4', name: 'Blocked Bakery', slug: 'blocked-bakery', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: true } }
+const bigBurger = { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: false }, serviceCities: [{ name: 'Marmeleiro', state: 'PR' }] }
+const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza', city: 'Curitiba', state: 'PR', lat: -25.4284, lng: -49.2733, status: 'ACTIVE', owner: { blocked: false }, serviceCities: [{ name: 'Curitiba', state: 'PR' }] }
+const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING', owner: { blocked: false }, serviceCities: [{ name: 'Marmeleiro', state: 'PR' }] }
+const blockedOwnerBusiness = { id: 'biz-4', name: 'Blocked Bakery', slug: 'blocked-bakery', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: true }, serviceCities: [{ name: 'Marmeleiro', state: 'PR' }] }
 
 const nearOffer = {
   id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', imageUrl: null,
@@ -44,15 +44,23 @@ const allOffers = [nearOffer, farOffer, pendingOffer, blockedOwnerOffer]
 // the query actually excludes non-ACTIVE businesses / blocked owners / non-matching
 // cities end-to-end.
 function fakeFindMany(args: {
-  where: { business: { status: string; owner?: { blocked: boolean }; city?: string; state?: string } }
+  where: {
+    business: {
+      status: string
+      owner?: { blocked: boolean }
+      serviceCities?: { some: { name: string; state: string } }
+    }
+  }
 }) {
   const { where } = args
   return Promise.resolve(
     allOffers.filter((offer) => {
       if (offer.business.status !== where.business.status) return false
       if (where.business.owner && offer.business.owner.blocked !== where.business.owner.blocked) return false
-      if (where.business.city && offer.business.city !== where.business.city) return false
-      if (where.business.state && offer.business.state !== where.business.state) return false
+      if (where.business.serviceCities) {
+        const { name, state } = where.business.serviceCities.some
+        if (!offer.business.serviceCities.some((c) => c.name === name && c.state === state)) return false
+      }
       return true
     }),
   )

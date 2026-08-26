@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 export async function getBusinessForOwner(ownerId: string) {
   return prisma.business.findFirst({
     where: { ownerId },
-    include: { category: true },
+    include: { category: true, serviceCities: { select: { id: true, name: true, state: true } } },
   })
 }
 

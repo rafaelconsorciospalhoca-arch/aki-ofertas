@@ -26,16 +26,24 @@ export function BusinessProfileForm({
   categories,
   cities,
   initialValues,
+  initialServiceCityIds,
 }: {
   categories: { id: string; name: string }[]
   cities: { id: string; name: string; state: string }[]
   initialValues: Values
+  initialServiceCityIds: string[]
 }) {
   const router = useRouter()
   const [values, setValues] = useState<Values>(initialValues)
+  const [serviceCityIds, setServiceCityIds] = useState<string[]>(initialServiceCityIds)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  function toggleServiceCity(cityId: string) {
+    setServiceCityIds((prev) => (prev.includes(cityId) ? prev.filter((id) => id !== cityId) : [...prev, cityId]))
+    setSuccess(false)
+  }
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -72,6 +80,7 @@ export function BusinessProfileForm({
         zip: values.zip,
         logoUrl: values.logoUrl,
         coverUrl: values.coverUrl,
+        serviceCityIds,
       })
 
       if (!result.ok) {
@@ -175,6 +184,25 @@ export function BusinessProfileForm({
           ))}
         </select>
       </label>
+
+      <div className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        Outras cidades atendidas (opcional)
+        <p className="text-xs font-normal text-neutral-400">
+          Suas ofertas também aparecem para clientes navegando nessas cidades.
+        </p>
+        <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-neutral-300 p-3">
+          {cities.map((city) => (
+            <label key={city.id} className="flex items-center gap-2 text-sm font-normal text-neutral-700">
+              <input
+                type="checkbox"
+                checked={serviceCityIds.includes(city.id)}
+                onChange={() => toggleServiceCity(city.id)}
+              />
+              {city.name} - {city.state}
+            </label>
+          ))}
+        </div>
+      </div>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         URL do logo

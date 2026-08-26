@@ -41,6 +41,8 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
 
   const passwordHash = await hashPassword(parsed.data.password)
   const slug = `${slugify(parsed.data.businessName)}-${randomSlugSuffix()}`
+  const state = parsed.data.state.toUpperCase()
+  const primaryCity = await prisma.city.findFirst({ where: { name: parsed.data.city, state } })
 
   const business = await prisma.$transaction(async (tx) => {
     const owner = await tx.user.create({
@@ -60,12 +62,13 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
         whatsapp: parsed.data.whatsapp,
         address: parsed.data.address,
         city: parsed.data.city,
-        state: parsed.data.state.toUpperCase(),
+        state,
         lat: parsed.data.lat,
         lng: parsed.data.lng,
         status: 'PENDING',
         planId: freePlan.id,
         slug,
+        ...(primaryCity ? { serviceCities: { connect: { id: primaryCity.id } } } : {}),
       },
     })
   })
@@ -90,6 +93,7 @@ const updateBusinessSchema = z.object({
   zip: z.string().optional(),
   logoUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
   coverUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
+  serviceCityIds: z.array(z.string()).optional(),
 })
 
 type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>
@@ -114,6 +118,13 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
     return { ok: false, error: 'Empresa não encontrada.' }
   }
 
+  const state = parsed.data.state.toUpperCase()
+  const primaryCity = await prisma.city.findFirst({ where: { name: parsed.data.city, state } })
+  const serviceCityIds = new Set(parsed.data.serviceCityIds ?? [])
+  if (primaryCity) {
+    serviceCityIds.add(primaryCity.id)
+  }
+
   await prisma.business.update({
     where: { id: business.id },
     data: {
@@ -129,10 +140,11 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
       number: parsed.data.number || null,
       neighborhood: parsed.data.neighborhood || null,
       city: parsed.data.city,
-      state: parsed.data.state.toUpperCase(),
+      state,
       zip: parsed.data.zip || null,
       logoUrl: parsed.data.logoUrl || null,
       coverUrl: parsed.data.coverUrl || null,
+      serviceCities: { set: Array.from(serviceCityIds).map((id) => ({ id })) },
     },
   })
 

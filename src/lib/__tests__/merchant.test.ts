@@ -21,7 +21,7 @@ describe('getBusinessForOwner', () => {
 
     expect(prisma.business.findFirst).toHaveBeenCalledWith({
       where: { ownerId: 'user-1' },
-      include: { category: true },
+      include: { category: true, serviceCities: { select: { id: true, name: true, state: true } } },
     })
     expect(result).toEqual({ id: 'biz-1' })
   })

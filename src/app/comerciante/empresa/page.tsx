@@ -19,6 +19,7 @@ export default async function ComercianteEmpresaPage() {
       <BusinessProfileForm
         categories={categories}
         cities={cities}
+        initialServiceCityIds={business.serviceCities.map((city) => city.id)}
         initialValues={{
           name: business.name,
           categoryId: business.categoryId,
