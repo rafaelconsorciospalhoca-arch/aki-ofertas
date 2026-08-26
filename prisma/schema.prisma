@@ -48,6 +48,7 @@ model User {
   businesses     Business[]
   coupons        Coupon[]
   favorites      Favorite[]
+  reviews        Review[]
   mobileSessions MobileSession[]
 
   @@map("users")
@@ -117,8 +118,40 @@ model Business {
   subscriptions   Subscription[]
   analyticsEvents AnalyticsEvent[]
   serviceCities   City[]           @relation("BusinessServiceCities")
+  reviews         Review[]
+  menuItems       MenuItem[]
 
   @@map("businesses")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, businessId])
+  @@map("reviews")
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+  name        String
+  description String?
+  price       Int?
+  imageUrl    String?
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("menu_items")
 }
 
 model BusinessHours {

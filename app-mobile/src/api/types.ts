@@ -84,3 +84,21 @@ export type BusinessSummary = {
 }
 
 export type FavoritesResult = { offers: OfferListItem[]; businesses: BusinessSummary[] }
+
+export type ReviewRow = {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  reviewerName: string
+}
+
+export type ReviewsSummary = { average: number | null; count: number; reviews: ReviewRow[] }
+
+export type MenuItemRow = {
+  id: string
+  name: string
+  description: string | null
+  price: number | null
+  imageUrl: string | null
+}

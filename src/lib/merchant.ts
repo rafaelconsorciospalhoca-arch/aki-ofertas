@@ -19,3 +19,10 @@ export async function getOfferForOwner(id: string, businessId: string) {
     where: { id, businessId },
   })
 }
+
+export async function getMenuItemsForOwner(businessId: string) {
+  return prisma.menuItem.findMany({
+    where: { businessId },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+  })
+}

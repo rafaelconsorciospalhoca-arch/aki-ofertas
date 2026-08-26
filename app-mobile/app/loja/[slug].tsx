@@ -5,7 +5,11 @@ import { ArrowLeft, Share2, Phone, MessageCircle } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
 import { HeartButton } from '@/components/HeartButton'
+import { StarRating } from '@/components/StarRating'
+import { ReviewsSection } from '@/components/ReviewsSection'
+import { MenuSection } from '@/components/MenuSection'
 import { useBusinessDetail } from '@/api/hooks/useBusinessDetail'
+import { useReviews } from '@/api/hooks/useReviews'
 
 type Tab = 'sobre' | 'ofertas' | 'cardapio' | 'avaliacoes'
 const TABS: { key: Tab; label: string }[] = [
@@ -18,6 +22,7 @@ const TABS: { key: Tab; label: string }[] = [
 export default function LojaScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const { data: business, isLoading } = useBusinessDetail(slug)
+  const reviews = useReviews(slug)
   const [tab, setTab] = useState<Tab>('ofertas')
 
   if (isLoading || !business) {
@@ -66,6 +71,14 @@ export default function LojaScreen() {
         <Text style={styles.name}>{business.name}</Text>
         <Text style={styles.category}>{business.categoryName}</Text>
         <Text style={styles.location}>{business.city} · {business.state}</Text>
+        {reviews.data && reviews.data.count > 0 && (
+          <View style={styles.ratingRow}>
+            <StarRating rating={reviews.data.average ?? 0} size={14} />
+            <Text style={styles.ratingText}>
+              {reviews.data.average!.toFixed(1)} ({reviews.data.count})
+            </Text>
+          </View>
+        )}
 
         {(business.phone || business.whatsapp) && (
           <View style={styles.ctaColumn}>
@@ -102,9 +115,8 @@ export default function LojaScreen() {
         {tab === 'sobre' && (
           <Text style={styles.description}>{business.description || 'Este estabelecimento ainda não adicionou uma descrição.'}</Text>
         )}
-        {(tab === 'cardapio' || tab === 'avaliacoes') && (
-          <Text style={styles.comingSoon}>Em breve.</Text>
-        )}
+        {tab === 'cardapio' && <MenuSection slug={business.slug} />}
+        {tab === 'avaliacoes' && <ReviewsSection slug={business.slug} />}
         {tab === 'ofertas' && <Text style={styles.offersTitle}>Ofertas do dia</Text>}
       </View>
     </View>
@@ -162,7 +174,8 @@ const styles = StyleSheet.create({
   category: { fontSize: 13, color: colors.green, fontWeight: '600' },
   location: { fontSize: 13, color: colors.neutral500 },
   description: { fontSize: 14, color: colors.neutral500, marginTop: 12, lineHeight: 20 },
-  comingSoon: { fontSize: 13, color: colors.neutral400, marginTop: 12, textAlign: 'center' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  ratingText: { fontSize: 12, color: colors.neutral500, fontWeight: '600' },
   ctaColumn: { marginTop: 16, gap: 10 },
   primaryButton: {
     flexDirection: 'row',

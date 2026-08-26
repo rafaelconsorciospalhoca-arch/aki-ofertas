@@ -10,4 +10,5 @@ export const colors = {
   neutral500: '#737373',
   neutral900: '#171717',
   red: '#EF4444',
+  amber: '#F59E0B',
 } as const
