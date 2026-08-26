@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native'
+import { View, Text, Image, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
 import { useFeaturedOffers } from '@/api/hooks/useFeaturedOffers'
 import { useCategories } from '@/api/hooks/useCategories'
 import { getStoredLocation, type StoredLocation } from '@/storage/location'
+
+function locationLabel(location: StoredLocation | null): string | null {
+  if (!location) return null
+  if (location.type === 'city') return `${location.name} · ${location.state}`
+  return 'Perto de você'
+}
 
 export default function InicioScreen() {
   const [location, setLocation] = useState<StoredLocation | null>(null)
@@ -24,9 +30,15 @@ export default function InicioScreen() {
       contentContainerStyle={styles.list}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Text style={styles.logo}>
-            Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
-          </Text>
+          <View style={styles.brandRow}>
+            <Image source={require('../../assets/brand/logo.png')} style={styles.logoImage} />
+            <View>
+              <Text style={styles.logoText}>
+                Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
+              </Text>
+              {locationLabel(location) && <Text style={styles.locationText}>📍 {locationLabel(location)}</Text>}
+            </View>
+          </View>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -60,7 +72,10 @@ export default function InicioScreen() {
 const styles = StyleSheet.create({
   list: { paddingBottom: 24 },
   header: { padding: 16, gap: 12 },
-  logo: { fontSize: 20, fontWeight: '800', color: colors.navy },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoImage: { width: 36, height: 36, borderRadius: 8 },
+  logoText: { fontSize: 20, fontWeight: '800', color: colors.navy },
+  locationText: { fontSize: 12, color: colors.neutral500, marginTop: 2 },
   categoryList: { gap: 8 },
   categoryChip: { backgroundColor: colors.neutral100, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
   categoryText: { fontSize: 12, fontWeight: '600', color: colors.neutral900 },

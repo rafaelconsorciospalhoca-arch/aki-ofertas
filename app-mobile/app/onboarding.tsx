@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, FlatList } from 'react-native'
+import { View, Text, Image, StyleSheet, ActivityIndicator, Pressable, FlatList } from 'react-native'
 import * as Location from 'expo-location'
 import { router, Stack } from 'expo-router'
 import { colors } from '@/theme/colors'
@@ -60,6 +60,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
+      <Image source={require('../assets/brand/logo.png')} style={styles.logoImage} />
       <Text style={styles.logo}>
         Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
       </Text>
@@ -80,6 +81,7 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.navy },
+  logoImage: { width: 96, height: 96, borderRadius: 20, marginBottom: 16 },
   logo: { fontSize: 28, fontWeight: '800', color: colors.white, marginBottom: 8 },
   subtitle: { fontSize: 14, color: colors.neutral200, marginBottom: 32, textAlign: 'center' },
   primaryButton: {
