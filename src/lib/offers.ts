@@ -93,11 +93,13 @@ export async function getOffersList(input: {
   location: Coordinates | null
   city?: CityCookie | null
   radiusKm?: number
+  query?: string
 }): Promise<OfferListItem[]> {
   const rows = await prisma.offer.findMany({
     where: {
       status: 'ACTIVE',
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+      ...(input.query ? { title: { contains: input.query, mode: 'insensitive' } } : {}),
       business: {
         status: 'ACTIVE',
         owner: { blocked: false },

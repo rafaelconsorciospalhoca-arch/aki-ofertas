@@ -169,6 +169,20 @@ describe('getOffersList', () => {
     )
   })
 
+  it('passes query through as a case-insensitive title filter when given', async () => {
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([] as never)
+
+    await getOffersList({ location: null, query: 'burguer' })
+
+    expect(prisma.offer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          title: { contains: 'burguer', mode: 'insensitive' },
+        }),
+      }),
+    )
+  })
+
   it('filters out offers beyond radiusKm when a location and radius are given', async () => {
     vi.mocked(prisma.offer.findMany).mockResolvedValue([farOffer, nearOffer] as never)
 

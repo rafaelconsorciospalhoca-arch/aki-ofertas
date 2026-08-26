@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getBusinessBySlug } from '@/lib/businesses'
+import { getBusinessBySlug, searchBusinesses } from '@/lib/businesses'
 import { prisma } from '@/lib/db'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
-    business: { findUnique: vi.fn() },
+    business: { findUnique: vi.fn(), findMany: vi.fn() },
   },
 }))
 
@@ -35,6 +35,21 @@ describe('getBusinessBySlug', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null when the business owner is blocked, even though the business is ACTIVE', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', slug: 'blocked-owner', name: 'Blocked Owner Business', description: null,
+      logoUrl: null, coverUrl: null, city: 'Marmeleiro', state: 'PR', phone: null,
+      whatsapp: null, lat: -25.9006, lng: -53.0489, status: 'ACTIVE',
+      category: { name: 'Restaurantes e Lanchonetes' },
+      offers: [],
+      owner: { blocked: true },
+    } as never)
+
+    const result = await getBusinessBySlug('blocked-owner')
+
+    expect(result).toBeNull()
+  })
+
   it('maps the business and its active offers when found', async () => {
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', slug: 'big-burger', name: 'Big Burger', description: 'Hambúrgueres artesanais.',
@@ -47,6 +62,7 @@ describe('getBusinessBySlug', () => {
           originalPrice: 4290, discountPrice: 2990, discountPercent: 30, createdAt: new Date('2026-01-01'),
         },
       ],
+      owner: { blocked: false },
     } as never)
 
     const result = await getBusinessBySlug('big-burger')
@@ -58,6 +74,39 @@ describe('getBusinessBySlug', () => {
     expect(result?.offers[0].slug).toBe('combo-burguer')
     expect(prisma.business.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { slug: 'big-burger' } }),
+    )
+  })
+})
+
+describe('searchBusinesses', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns businesses matching the query, mapped to a summary shape', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      {
+        id: 'biz-1', slug: 'big-burger', name: 'Big Burger', logoUrl: null,
+        city: 'Marmeleiro', state: 'PR', category: { name: 'Restaurantes e Lanchonetes' },
+      },
+    ] as never)
+
+    const result = await searchBusinesses('burger')
+
+    expect(result).toEqual([
+      {
+        id: 'biz-1', slug: 'big-burger', name: 'Big Burger', logoUrl: null,
+        categoryName: 'Restaurantes e Lanchonetes', city: 'Marmeleiro', state: 'PR',
+      },
+    ])
+    expect(prisma.business.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: 'ACTIVE',
+          owner: { blocked: false },
+          name: { contains: 'burger', mode: 'insensitive' },
+        },
+      }),
     )
   })
 })

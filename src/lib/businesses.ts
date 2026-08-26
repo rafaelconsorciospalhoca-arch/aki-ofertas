@@ -22,11 +22,12 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessDetail | 
     include: {
       category: true,
       offers: { where: { status: 'ACTIVE' } },
+      owner: { select: { blocked: true } },
     },
   })
 
   if (!row) return null
-  if (row.status !== 'ACTIVE') return null
+  if (row.status !== 'ACTIVE' || row.owner.blocked) return null
 
   const businessRow = { id: row.id, name: row.name, slug: row.slug, city: row.city, state: row.state, lat: row.lat, lng: row.lng }
 
@@ -44,4 +45,37 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessDetail | 
     whatsapp: row.whatsapp,
     offers: row.offers.map((offer) => toOfferListItem(offer, businessRow, null)),
   }
+}
+
+export type BusinessSummary = {
+  id: string
+  slug: string
+  name: string
+  logoUrl: string | null
+  categoryName: string
+  city: string
+  state: string
+}
+
+export async function searchBusinesses(query: string): Promise<BusinessSummary[]> {
+  const rows = await prisma.business.findMany({
+    where: {
+      status: 'ACTIVE',
+      owner: { blocked: false },
+      name: { contains: query, mode: 'insensitive' },
+    },
+    include: { category: true },
+    orderBy: { name: 'asc' },
+    take: 20,
+  })
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    logoUrl: row.logoUrl,
+    categoryName: row.category.name,
+    city: row.city,
+    state: row.state,
+  }))
 }

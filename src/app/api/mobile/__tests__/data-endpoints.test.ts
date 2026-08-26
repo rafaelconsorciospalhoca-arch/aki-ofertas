@@ -5,11 +5,12 @@ import { GET as getDestaque } from '@/app/api/mobile/ofertas/destaque/route'
 import { GET as getOfertas } from '@/app/api/mobile/ofertas/route'
 import { GET as getOferta } from '@/app/api/mobile/ofertas/[slug]/route'
 import { GET as getLoja } from '@/app/api/mobile/lojas/[slug]/route'
+import { GET as getLojasSearch } from '@/app/api/mobile/lojas/route'
 import { GET as getCategorias } from '@/app/api/mobile/categorias/route'
 import { GET as getCidades } from '@/app/api/mobile/cidades/route'
 import { GET as getPerfil } from '@/app/api/mobile/perfil/route'
 import { getFeaturedOffers, getOffersList, getOfferBySlug } from '@/lib/offers'
-import { getBusinessBySlug } from '@/lib/businesses'
+import { getBusinessBySlug, searchBusinesses } from '@/lib/businesses'
 import { getActiveCategories, getActiveCities } from '@/lib/categories'
 import { requireMobileUser } from '@/lib/mobile-session'
 import { prisma } from '@/lib/db'
@@ -19,7 +20,7 @@ vi.mock('@/lib/offers', () => ({
   getOffersList: vi.fn(),
   getOfferBySlug: vi.fn(),
 }))
-vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn() }))
+vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn(), searchBusinesses: vi.fn() }))
 vi.mock('@/lib/categories', () => ({ getActiveCategories: vi.fn(), getActiveCities: vi.fn() }))
 vi.mock('@/lib/mobile-session', () => ({ requireMobileUser: vi.fn() }))
 vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: vi.fn() } } }))
@@ -70,6 +71,15 @@ describe('GET /api/mobile/ofertas', () => {
       expect.objectContaining({ categoryId: 'cat-1', radiusKm: 5 }),
     )
   })
+
+  it('passes q through to getOffersList as query', async () => {
+    vi.mocked(getOffersList).mockResolvedValue([] as never)
+    const response = await getOfertas(new Request('https://example.com/api/mobile/ofertas?q=burguer'))
+    expect(response.status).toBe(200)
+    expect(getOffersList).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'burguer' }),
+    )
+  })
 })
 
 describe('GET /api/mobile/ofertas/[slug]', () => {
@@ -103,6 +113,25 @@ describe('GET /api/mobile/lojas/[slug]', () => {
     const response = await getLoja(new Request('https://example.com/api/mobile/lojas/big-burger'), { params: { slug: 'big-burger' } })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true, data: { id: 'b1' } })
+  })
+})
+
+describe('GET /api/mobile/lojas', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns an empty list without calling searchBusinesses when q is missing', async () => {
+    const response = await getLojasSearch(new Request('https://example.com/api/mobile/lojas'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: [] })
+    expect(searchBusinesses).not.toHaveBeenCalled()
+  })
+
+  it('passes q through to searchBusinesses', async () => {
+    vi.mocked(searchBusinesses).mockResolvedValue([{ id: 'b1' }] as never)
+    const response = await getLojasSearch(new Request('https://example.com/api/mobile/lojas?q=burger'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, data: [{ id: 'b1' }] })
+    expect(searchBusinesses).toHaveBeenCalledWith('burger')
   })
 })
 

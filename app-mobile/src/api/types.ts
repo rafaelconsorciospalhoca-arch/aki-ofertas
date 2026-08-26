@@ -72,3 +72,13 @@ export type Profile = {
   email: string
   city: string | null
 }
+
+export type BusinessSummary = {
+  id: string
+  slug: string
+  name: string
+  logoUrl: string | null
+  categoryName: string
+  city: string
+  state: string
+}
