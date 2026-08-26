@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/api/client'
 
 export function GenerateCouponButton({ offerId }: { offerId: string }) {
   const { token, authedFetch } = useAuth()
+  const queryClient = useQueryClient()
   const [code, setCode] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +27,7 @@ export function GenerateCouponButton({ offerId }: { offerId: string }) {
         body: { offerId },
       })
       setCode(result.coupon.code)
+      queryClient.invalidateQueries({ queryKey: ['cupons'] })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível gerar o cupom.')
     } finally {

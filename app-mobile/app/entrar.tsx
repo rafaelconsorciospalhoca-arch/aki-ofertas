@@ -22,10 +22,19 @@ export default function EntrarScreen() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
+  // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
+  // derrubaria a tela inteira (inclusive o fluxo de e-mail + código).
+  const googleConfigured = Boolean(
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  )
+
   const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   })
 
   useEffect(() => {
@@ -97,9 +106,16 @@ export default function EntrarScreen() {
         <>
           <Text style={styles.title}>Entrar no Aki Ofertas</Text>
           {error && <Text style={styles.error}>{error}</Text>}
-          <Pressable style={styles.googleButton} onPress={() => promptAsync()} disabled={!request || pending}>
+          <Pressable
+            style={[styles.googleButton, !googleConfigured && styles.googleButtonDisabled]}
+            onPress={() => promptAsync()}
+            disabled={!request || pending || !googleConfigured}
+          >
             {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.googleButtonText}>Cadastrar com Google</Text>}
           </Pressable>
+          {!googleConfigured && (
+            <Text style={styles.subtitle}>Entrar com Google ainda não está disponível.</Text>
+          )}
           <Pressable onPress={() => setStep('email')}>
             <Text style={styles.linkText}>Cadastro normal</Text>
           </Pressable>
@@ -155,6 +171,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: colors.neutral500, textAlign: 'center', marginBottom: 8 },
   error: { color: colors.red, fontSize: 13, textAlign: 'center' },
   googleButton: { backgroundColor: colors.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  googleButtonDisabled: { opacity: 0.4 },
   googleButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   primaryButton: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },

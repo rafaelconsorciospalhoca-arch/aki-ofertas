@@ -24,7 +24,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Aki Ofertas usa sua localização para mostrar ofertas perto de você.",
+          "locationAlwaysAndWhenInUsePermission": "Aki Ofertas usa sua localização para mostrar ofertas perto de você."
+        }
+      ]
     ]
   }
 }

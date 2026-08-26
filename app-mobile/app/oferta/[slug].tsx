@@ -1,5 +1,5 @@
-import { View, Text, Image, ScrollView, ActivityIndicator, StyleSheet } from 'react-native'
-import { useLocalSearchParams, Stack } from 'expo-router'
+import { View, Text, Image, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native'
+import { useLocalSearchParams, Stack, router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import { useOfferDetail } from '@/api/hooks/useOfferDetail'
@@ -31,7 +31,9 @@ export default function OfertaScreen() {
         <View style={styles.imagePlaceholder} />
       )}
       <View style={styles.content}>
-        <Text style={styles.business}>{offer.business.name}</Text>
+        <Pressable onPress={() => router.push(`/loja/${offer.business.slug}`)}>
+          <Text style={styles.business}>{offer.business.name}</Text>
+        </Pressable>
         <Text style={styles.title}>{offer.title}</Text>
         {offer.description && <Text style={styles.description}>{offer.description}</Text>}
         <View style={styles.priceRow}>

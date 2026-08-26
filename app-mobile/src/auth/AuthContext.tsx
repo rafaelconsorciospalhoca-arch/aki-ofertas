@@ -1,6 +1,7 @@
 // app-mobile/src/auth/AuthContext.tsx
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import * as SecureStore from 'expo-secure-store'
+import { useQueryClient } from '@tanstack/react-query'
 import { apiFetch, ApiError } from '@/api/client'
 
 const TOKEN_KEY = 'aki_token'
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     SecureStore.getItemAsync(TOKEN_KEY).then((stored) => {
@@ -32,17 +34,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  const login = useCallback(async (newToken: string, newUser: AuthUser) => {
-    await SecureStore.setItemAsync(TOKEN_KEY, newToken)
-    setToken(newToken)
-    setUser(newUser)
-  }, [])
+  const login = useCallback(
+    async (newToken: string, newUser: AuthUser) => {
+      await SecureStore.setItemAsync(TOKEN_KEY, newToken)
+      setToken(newToken)
+      setUser(newUser)
+      // Descarta dados em cache de outra identidade.
+      queryClient.clear()
+    },
+    [queryClient],
+  )
 
   const logout = useCallback(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY)
     setToken(null)
     setUser(null)
-  }, [])
+    queryClient.clear()
+  }, [queryClient])
 
   const authedFetch = useCallback(
     async <T,>(path: string, options: AuthedFetchOptions = {}): Promise<T> => {
