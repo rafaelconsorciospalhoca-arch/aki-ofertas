@@ -22,7 +22,19 @@ export function BusinessCard({ business }: { business: BusinessSummary }) {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: 12, padding: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.neutral200, alignItems: 'center' },
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   logo: { width: 48, height: 48, borderRadius: 12 },
   logoPlaceholder: { width: 48, height: 48, borderRadius: 12, backgroundColor: colors.neutral100 },
   info: { flex: 1 },

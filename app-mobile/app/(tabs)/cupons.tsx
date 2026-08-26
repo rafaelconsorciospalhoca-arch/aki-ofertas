@@ -46,7 +46,9 @@ export default function CuponsScreen() {
               <Text style={styles.offerTitle}>{item.offerTitle}</Text>
               <Text style={styles.businessName}>{item.businessName}</Text>
             </View>
-            <Text style={[styles.status, { color: STATUS_COLOR[item.status] }]}>{STATUS_LABEL[item.status]}</Text>
+            <View style={[styles.statusPill, { backgroundColor: `${STATUS_COLOR[item.status]}1A` }]}>
+              <Text style={[styles.status, { color: STATUS_COLOR[item.status] }]}>{STATUS_LABEL[item.status]}</Text>
+            </View>
           </View>
           <Text style={styles.code}>{item.code}</Text>
           <Text style={styles.expiry}>Válido até {formatDate(item.expiresAt)}</Text>
@@ -64,11 +66,22 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontWeight: '700' },
   list: { padding: 16, gap: 12 },
   title: { fontSize: 20, fontWeight: '800', color: colors.neutral900, marginBottom: 8 },
-  card: { borderWidth: 1, borderColor: colors.neutral200, borderRadius: 16, padding: 16, marginBottom: 12 },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   offerTitle: { fontSize: 14, fontWeight: '700', color: colors.neutral900 },
   businessName: { fontSize: 12, color: colors.neutral500 },
-  status: { fontSize: 12, fontWeight: '700' },
+  statusPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  status: { fontSize: 11, fontWeight: '700' },
   code: { fontSize: 20, fontWeight: '800', letterSpacing: 3, textAlign: 'center', marginTop: 12, color: colors.neutral900 },
   expiry: { fontSize: 11, color: colors.neutral500, textAlign: 'center', marginTop: 4 },
 })

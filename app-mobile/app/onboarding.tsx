@@ -60,41 +60,59 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Image source={require('../assets/brand/logo.png')} style={styles.logoImage} />
-      <Text style={styles.logo}>
-        Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
-      </Text>
-      <Text style={styles.subtitle}>Ofertas de comércios pertinho de você</Text>
-      <Pressable style={styles.primaryButton} onPress={handleAllowLocation} disabled={requesting}>
-        {requesting ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Permitir localização</Text>
-        )}
-      </Pressable>
-      <Pressable onPress={() => setShowCityPicker(true)}>
-        <Text style={styles.linkText}>Escolher cidade manualmente</Text>
-      </Pressable>
+      <View style={styles.brandArea}>
+        <Image source={require('../assets/brand/logo.png')} style={styles.logoImage} />
+        <Text style={styles.logo}>
+          Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
+        </Text>
+        <Text style={styles.subtitle}>As melhores ofertas, pertinho de você!</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Permita sua localização</Text>
+        <Text style={styles.cardText}>
+          Assim podemos mostrar as melhores ofertas e estabelecimentos perto de você.
+        </Text>
+        <Pressable style={styles.primaryButton} onPress={handleAllowLocation} disabled={requesting}>
+          {requesting ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.primaryButtonText}>Ativar localização</Text>
+          )}
+        </Pressable>
+        <Pressable onPress={() => setShowCityPicker(true)}>
+          <Text style={styles.linkText}>Agora não</Text>
+        </Pressable>
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.navy },
-  logoImage: { width: 96, height: 96, borderRadius: 20, marginBottom: 16 },
-  logo: { fontSize: 28, fontWeight: '800', color: colors.white, marginBottom: 8 },
-  subtitle: { fontSize: 14, color: colors.neutral200, marginBottom: 32, textAlign: 'center' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.navy, paddingVertical: 64 },
+  brandArea: { alignItems: 'center', gap: 4 },
+  logoImage: { width: 88, height: 88, borderRadius: 20, marginBottom: 16 },
+  logo: { fontSize: 26, fontWeight: '800', color: colors.white },
+  subtitle: { fontSize: 13, color: colors.neutral200, textAlign: 'center', marginTop: 4 },
+  card: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardTitle: { fontSize: 17, fontWeight: '800', color: colors.neutral900 },
+  cardText: { fontSize: 13, color: colors.neutral500, textAlign: 'center', lineHeight: 19, marginBottom: 8 },
   primaryButton: {
     backgroundColor: colors.green,
     paddingVertical: 14,
-    paddingHorizontal: 32,
     borderRadius: 12,
-    marginBottom: 16,
-    minWidth: 240,
+    width: '100%',
     alignItems: 'center',
   },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  linkText: { color: colors.neutral200, fontSize: 13, textDecorationLine: 'underline' },
+  linkText: { color: colors.neutral400, fontSize: 13 },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 16, marginTop: 48 },
   cityRow: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.neutral200 },
   cityText: { fontSize: 15 },

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -8,7 +8,7 @@ import { ApiError } from '@/api/client'
 
 const PHONE_REQUIRED_MESSAGE = 'Informe seu telefone para resgatar o cupom.'
 
-export function GenerateCouponButton({ offerId }: { offerId: string }) {
+export function GenerateCouponButton({ offerId, icon }: { offerId: string; icon?: ReactNode }) {
   const { token, authedFetch } = useAuth()
   const queryClient = useQueryClient()
   const [code, setCode] = useState<string | null>(null)
@@ -90,14 +90,29 @@ export function GenerateCouponButton({ offerId }: { offerId: string }) {
     <View>
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={styles.button} onPress={handlePress} disabled={pending}>
-        {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Gerar cupom</Text>}
+        {pending ? (
+          <ActivityIndicator color={colors.white} />
+        ) : (
+          <>
+            {icon}
+            <Text style={styles.buttonText}>Usar cupom</Text>
+          </>
+        )}
       </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  button: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  button: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: colors.green,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   buttonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   error: { color: colors.red, fontSize: 13, textAlign: 'center', marginBottom: 8 },
   codeBox: { backgroundColor: '#E9F9EF', borderRadius: 12, padding: 16, alignItems: 'center' },

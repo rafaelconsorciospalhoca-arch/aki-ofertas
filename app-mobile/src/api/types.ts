@@ -82,3 +82,5 @@ export type BusinessSummary = {
   city: string
   state: string
 }
+
+export type FavoritesResult = { offers: OfferListItem[]; businesses: BusinessSummary[] }

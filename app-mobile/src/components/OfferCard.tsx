@@ -31,8 +31,19 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: 12, padding: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.neutral200 },
-  imageWrapper: { width: 64, height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.neutral100 },
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  imageWrapper: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.neutral100 },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { width: '100%', height: '100%', backgroundColor: colors.neutral100 },
   discountBadge: { position: 'absolute', left: 4, top: 4, backgroundColor: colors.red, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },

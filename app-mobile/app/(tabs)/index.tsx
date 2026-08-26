@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
 import { BusinessCard } from '@/components/BusinessCard'
+import { CategoryGrid } from '@/components/CategoryGrid'
 import { useFeaturedOffers } from '@/api/hooks/useFeaturedOffers'
 import { useCategories } from '@/api/hooks/useCategories'
 import { useSearch } from '@/api/hooks/useSearch'
@@ -93,21 +94,13 @@ export default function InicioScreen() {
             </View>
           )}
           <SearchBar value={query} onChangeText={setQuery} />
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={categories.data ?? []}
-            keyExtractor={(category) => category.id}
-            contentContainerStyle={styles.categoryList}
-            renderItem={({ item }) => (
-              <View style={styles.categoryChip}>
-                <Text style={styles.categoryText}>{item.name}</Text>
-              </View>
-            )}
-          />
-          <Pressable onPress={() => router.push('/ofertas')}>
-            <Text style={styles.seeAllText}>Ver todas as ofertas</Text>
-          </Pressable>
+          <CategoryGrid categories={categories.data ?? []} />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Ofertas em destaque</Text>
+            <Pressable onPress={() => router.push('/ofertas')}>
+              <Text style={styles.seeAllText}>Ver todas</Text>
+            </Pressable>
+          </View>
           {offers.isLoading && <ActivityIndicator color={colors.green} style={{ marginTop: 16 }} />}
         </View>
       }
@@ -151,9 +144,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
   },
-  categoryList: { gap: 8 },
-  categoryChip: { backgroundColor: colors.neutral100, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
-  categoryText: { fontSize: 12, fontWeight: '600', color: colors.neutral900 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.neutral900 },
   seeAllText: { color: colors.green, fontWeight: '700', fontSize: 13 },
   cardWrapper: { paddingHorizontal: 16, marginBottom: 8 },
   emptyText: { textAlign: 'center', color: colors.neutral500, marginTop: 32 },
