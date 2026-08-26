@@ -22,6 +22,7 @@ export default function EntrarScreen() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [phone, setPhone] = useState('')
+  const [needsProfile, setNeedsProfile] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,10 +47,26 @@ export default function EntrarScreen() {
   })
 
   useEffect(() => {
-    if (response?.type === 'success' && response.authentication?.idToken) {
+    if (!response) return
+
+    if (response.type === 'success' && response.authentication?.idToken) {
       handleGoogleToken(response.authentication.idToken)
-    } else if (response?.type === 'error') {
-      setError('Não foi possível entrar com Google.')
+      return
+    }
+    if (response.type === 'success') {
+      // Google returned but without an idToken — should not happen with
+      // useIdTokenAuthRequest, but fail loudly instead of doing nothing.
+      console.error('Google auth succeeded without an idToken', response)
+      setError('O Google não retornou os dados esperados. Tente novamente.')
+      return
+    }
+    if (response.type === 'error') {
+      console.error('Google auth error', response.error, response.params)
+      setError(response.error?.description || response.error?.message || 'Não foi possível entrar com Google.')
+      return
+    }
+    if (response.type === 'cancel' || response.type === 'dismiss') {
+      setError('Login com Google cancelado.')
     }
   }, [response])
 
@@ -97,7 +114,13 @@ export default function EntrarScreen() {
       await login(result.token, result.user)
       router.back()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.')
+      const message = err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.'
+      if (message === 'Informe seus dados para continuar.') {
+        setNeedsProfile(true)
+        setError('Primeiro acesso: preencha seus dados abaixo para concluir.')
+      } else {
+        setError(message)
+      }
     } finally {
       setPending(false)
     }
@@ -123,7 +146,7 @@ export default function EntrarScreen() {
                 <View style={styles.googleIconBadge}>
                   <GoogleIcon size={16} />
                 </View>
-                <Text style={styles.googleButtonText}>Cadastrar com Google</Text>
+                <Text style={styles.googleButtonText}>Continuar com Google</Text>
               </>
             )}
           </Pressable>
@@ -131,15 +154,16 @@ export default function EntrarScreen() {
             <Text style={styles.subtitle}>Entrar com Google ainda não está disponível.</Text>
           )}
           <Pressable style={styles.secondaryButton} onPress={() => setStep('form')}>
-            <Text style={styles.secondaryButtonText}>Cadastro normal</Text>
+            <Text style={styles.secondaryButtonText}>Continuar com e-mail</Text>
           </Pressable>
+          <Text style={styles.hintText}>Já tem conta? Use a mesma opção que usou da primeira vez.</Text>
         </>
       )}
 
       {step === 'form' && (
         <>
-          <Text style={styles.title}>Seus dados</Text>
-          <Text style={styles.subtitle}>Depois disso só falta confirmar o código que enviaremos por e-mail.</Text>
+          <Text style={styles.title}>Entrar com e-mail</Text>
+          <Text style={styles.subtitle}>Já tem conta? Só o e-mail. Primeiro acesso? Preencha tudo pra ir mais rápido.</Text>
           {error && <Text style={styles.error}>{error}</Text>}
           <TextInput
             style={styles.input}
@@ -149,8 +173,8 @@ export default function EntrarScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
+          <TextInput style={styles.input} placeholder="Seu nome (primeiro acesso)" value={name} onChangeText={setName} />
+          <TextInput style={styles.input} placeholder="Cidade (primeiro acesso)" value={city} onChangeText={setCity} />
           <TextInput
             style={styles.input}
             placeholder="Estado (ex: PR)"
@@ -166,11 +190,7 @@ export default function EntrarScreen() {
             onChangeText={setPhone}
             keyboardType="phone-pad"
           />
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleRequestCode}
-            disabled={pending || !email || !name || !city || !state || !phone}
-          >
+          <Pressable style={styles.primaryButton} onPress={handleRequestCode} disabled={pending || !email}>
             {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Enviar código</Text>}
           </Pressable>
         </>
@@ -189,7 +209,32 @@ export default function EntrarScreen() {
             keyboardType="number-pad"
             maxLength={6}
           />
-          <Pressable style={styles.primaryButton} onPress={handleConfirmCode} disabled={pending || !code}>
+          {needsProfile && (
+            <>
+              <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
+              <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
+              <TextInput
+                style={styles.input}
+                placeholder="Estado (ex: PR)"
+                value={state}
+                onChangeText={setState}
+                autoCapitalize="characters"
+                maxLength={2}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Telefone (com DDD)"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </>
+          )}
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleConfirmCode}
+            disabled={pending || !code || (needsProfile && (!name || !city || !state || !phone))}
+          >
             {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Confirmar</Text>}
           </Pressable>
         </>
@@ -233,5 +278,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   secondaryButtonText: { color: colors.neutral900, fontWeight: '700', fontSize: 15 },
+  hintText: { color: colors.neutral400, fontSize: 12, textAlign: 'center', marginTop: 4 },
   input: { borderWidth: 1, borderColor: colors.neutral200, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
 })
