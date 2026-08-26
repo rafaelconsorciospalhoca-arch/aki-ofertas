@@ -41,3 +41,8 @@ next-env.d.ts
 .claude/worktrees/
 
 .env*
+
+# app-mobile (Expo)
+app-mobile/node_modules
+app-mobile/.expo
+app-mobile/dist
