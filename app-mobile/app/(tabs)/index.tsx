@@ -3,6 +3,7 @@ import { View, Text, Image, TextInput, FlatList, ActivityIndicator, StyleSheet, 
 import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
+import { FeaturedOfferCard } from '@/components/FeaturedOfferCard'
 import { BusinessCard } from '@/components/BusinessCard'
 import { CategoryGrid } from '@/components/CategoryGrid'
 import { useFeaturedOffers } from '@/api/hooks/useFeaturedOffers'
@@ -104,9 +105,9 @@ export default function InicioScreen() {
           {offers.isLoading && <ActivityIndicator color={colors.green} style={{ marginTop: 16 }} />}
         </View>
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <View style={styles.cardWrapper}>
-          <OfferCard offer={item} />
+          {index === 0 ? <FeaturedOfferCard offer={item} /> : <OfferCard offer={item} />}
         </View>
       )}
       ListEmptyComponent={
