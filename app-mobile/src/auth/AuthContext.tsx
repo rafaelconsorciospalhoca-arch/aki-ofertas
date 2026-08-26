@@ -1,6 +1,6 @@
 // app-mobile/src/auth/AuthContext.tsx
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import * as SecureStore from 'expo-secure-store'
+import * as kv from '@/storage/kv'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiFetch, ApiError } from '@/api/client'
 
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    SecureStore.getItemAsync(TOKEN_KEY).then((stored) => {
+    kv.getItemAsync(TOKEN_KEY).then((stored) => {
       setToken(stored)
       setLoading(false)
     })
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (newToken: string, newUser: AuthUser) => {
-      await SecureStore.setItemAsync(TOKEN_KEY, newToken)
+      await kv.setItemAsync(TOKEN_KEY, newToken)
       setToken(newToken)
       setUser(newUser)
       // Descarta dados em cache de outra identidade.
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY)
+    await kv.deleteItemAsync(TOKEN_KEY)
     setToken(null)
     setUser(null)
     queryClient.clear()

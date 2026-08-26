@@ -1,5 +1,5 @@
 // app-mobile/src/storage/location.ts
-import * as SecureStore from 'expo-secure-store'
+import * as kv from '@/storage/kv'
 
 const LOCATION_KEY = 'aki_location'
 
@@ -8,10 +8,10 @@ export type StoredLocation =
   | { type: 'city'; name: string; state: string }
 
 export async function getStoredLocation(): Promise<StoredLocation | null> {
-  const raw = await SecureStore.getItemAsync(LOCATION_KEY)
+  const raw = await kv.getItemAsync(LOCATION_KEY)
   return raw ? (JSON.parse(raw) as StoredLocation) : null
 }
 
 export async function setStoredLocation(location: StoredLocation): Promise<void> {
-  await SecureStore.setItemAsync(LOCATION_KEY, JSON.stringify(location))
+  await kv.setItemAsync(LOCATION_KEY, JSON.stringify(location))
 }
