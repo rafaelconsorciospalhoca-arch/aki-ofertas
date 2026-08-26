@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { apiFetch, ApiError } from '@/api/client'
+import { GoogleIcon } from '@/components/GoogleIcon'
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -33,10 +34,15 @@ export default function EntrarScreen() {
       process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   )
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+    // Hardcoded rather than auto-detected: `makeRedirectUri()` derives this from
+    // `window.location` at render time, which is fragile (differs by entry path)
+    // and must match a Google Cloud "Authorized redirect URI" exactly, or Google
+    // rejects the whole request with a generic "invalid request" error.
+    redirectUri: 'https://akiofertas.com.br/app/entrar',
   })
 
   useEffect(() => {
@@ -110,13 +116,22 @@ export default function EntrarScreen() {
             onPress={() => promptAsync()}
             disabled={!request || pending || !googleConfigured}
           >
-            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.googleButtonText}>Cadastrar com Google</Text>}
+            {pending ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <View style={styles.googleIconBadge}>
+                  <GoogleIcon size={16} />
+                </View>
+                <Text style={styles.googleButtonText}>Cadastrar com Google</Text>
+              </>
+            )}
           </Pressable>
           {!googleConfigured && (
             <Text style={styles.subtitle}>Entrar com Google ainda não está disponível.</Text>
           )}
-          <Pressable onPress={() => setStep('form')}>
-            <Text style={styles.linkText}>Cadastro normal</Text>
+          <Pressable style={styles.secondaryButton} onPress={() => setStep('form')}>
+            <Text style={styles.secondaryButtonText}>Cadastro normal</Text>
           </Pressable>
         </>
       )}
@@ -188,11 +203,35 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', color: colors.neutral900, marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 13, color: colors.neutral500, textAlign: 'center', marginBottom: 8 },
   error: { color: colors.red, fontSize: 13, textAlign: 'center' },
-  googleButton: { backgroundColor: colors.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  googleButton: {
+    backgroundColor: colors.navy,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
   googleButtonDisabled: { opacity: 0.4 },
+  googleIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   googleButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   primaryButton: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  linkText: { color: colors.neutral500, fontSize: 13, textAlign: 'center', textDecorationLine: 'underline' },
+  secondaryButton: {
+    borderWidth: 1.5,
+    borderColor: colors.neutral200,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  secondaryButtonText: { color: colors.neutral900, fontWeight: '700', fontSize: 15 },
   input: { borderWidth: 1, borderColor: colors.neutral200, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
 })
