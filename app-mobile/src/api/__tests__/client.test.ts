@@ -9,39 +9,47 @@ describe('apiFetch', () => {
   })
 
   it('returns the data field on a successful response', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ ok: true, data: [{ id: 'o1' }] }),
-    }) as never
+    } as Response)
 
     const result = await apiFetch('/ofertas/destaque')
     expect(result).toEqual([{ id: 'o1' }])
   })
 
   it('returns the whole payload when there is no data field (auth responses)', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ ok: true, token: 'abc', user: { id: 'u1' } }),
-    }) as never
+    } as Response)
 
     const result = await apiFetch('/auth/google')
     expect(result).toEqual({ ok: true, token: 'abc', user: { id: 'u1' } })
   })
 
   it('throws an ApiError with the server message on ok:false', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 400,
       json: async () => ({ ok: false, error: 'Oferta não encontrada.' }),
-    }) as never
+    } as Response)
 
     await expect(apiFetch('/ofertas/nope')).rejects.toThrow('Oferta não encontrada.')
   })
 
   it('throws an ApiError carrying the HTTP status', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 401,
       json: async () => ({ ok: false, error: 'Sessão expirada.' }),
-    }) as never
+    } as Response)
 
     try {
       await apiFetch('/cupons')
@@ -53,11 +61,12 @@ describe('apiFetch', () => {
   })
 
   it('sends the Authorization header when a token is given', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ ok: true, data: [] }),
-    })
-    global.fetch = fetchMock as never
+    } as Response)
 
     await apiFetch('/cupons', { token: 'my-token' })
 
@@ -66,11 +75,12 @@ describe('apiFetch', () => {
   })
 
   it('does not send an Authorization header when there is no token', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ ok: true, data: [] }),
-    })
-    global.fetch = fetchMock as never
+    } as Response)
 
     await apiFetch('/categorias')
 
@@ -79,11 +89,12 @@ describe('apiFetch', () => {
   })
 
   it('sends a JSON body for POST requests', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
+    global.fetch = fetchMock
+    fetchMock.mockResolvedValue({
       status: 200,
       json: async () => ({ ok: true, coupon: { code: 'AK1234' } }),
-    })
-    global.fetch = fetchMock as never
+    } as Response)
 
     await apiFetch('/cupons/gerar', { method: 'POST', body: { offerId: 'offer-1' } })
 
