@@ -22,6 +22,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "experiments": {
+      "baseUrl": "/app"
+    },
     "plugins": [
       "expo-router",
       "expo-status-bar",
