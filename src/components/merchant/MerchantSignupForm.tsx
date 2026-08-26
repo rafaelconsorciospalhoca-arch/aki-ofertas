@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signUpMerchant } from '@/actions/merchant-actions'
+import { lookupCep } from '@/lib/cep'
 
 type Values = {
   ownerName: string
@@ -27,6 +28,8 @@ export function MerchantSignupForm({
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [zip, setZip] = useState('')
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'not-found'>('idle')
   const [values, setValues] = useState<Values>({
     ownerName: '',
     email: '',
@@ -42,6 +45,29 @@ export function MerchantSignupForm({
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleCepBlur() {
+    const digits = zip.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    setCepStatus('loading')
+    const result = await lookupCep(zip)
+    if (!result) {
+      setCepStatus('not-found')
+      return
+    }
+    setCepStatus('idle')
+
+    const matchedCity = cities.find(
+      (city) => city.name.toLowerCase() === result.city.toLowerCase() && city.state === result.state,
+    )
+
+    setValues((prev) => ({
+      ...prev,
+      address: [result.street, result.neighborhood].filter(Boolean).join(', ') || prev.address,
+      cityState: matchedCity ? `${matchedCity.name}|${matchedCity.state}` : prev.cityState,
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,6 +135,18 @@ export function MerchantSignupForm({
         ))}
       </select>
       <input placeholder="WhatsApp (com DDD)" value={values.whatsapp} onChange={(e) => update('whatsapp', e.target.value)} className={inputClass} required />
+      <div>
+        <input
+          placeholder="CEP"
+          value={zip}
+          onChange={(e) => setZip(e.target.value)}
+          onBlur={handleCepBlur}
+          className={inputClass + ' w-full'}
+          maxLength={9}
+        />
+        {cepStatus === 'loading' && <p className="mt-1 text-xs text-neutral-400">Buscando endereço...</p>}
+        {cepStatus === 'not-found' && <p className="mt-1 text-xs text-red-600">CEP não encontrado, preencha manualmente.</p>}
+      </div>
       <input placeholder="Endereço" value={values.address} onChange={(e) => update('address', e.target.value)} className={inputClass} required />
       <select value={values.cityState} onChange={(e) => update('cityState', e.target.value)} className={inputClass} required>
         <option value="">Escolha sua cidade</option>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateBusiness } from '@/actions/merchant-actions'
+import { lookupCep } from '@/lib/cep'
 
 type Values = {
   name: string
@@ -39,6 +40,7 @@ export function BusinessProfileForm({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'not-found'>('idle')
 
   function toggleServiceCity(cityId: string) {
     setServiceCityIds((prev) => (prev.includes(cityId) ? prev.filter((id) => id !== cityId) : [...prev, cityId]))
@@ -48,6 +50,30 @@ export function BusinessProfileForm({
   function update<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
     setSuccess(false)
+  }
+
+  async function handleCepBlur() {
+    const digits = values.zip.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    setCepStatus('loading')
+    const result = await lookupCep(values.zip)
+    if (!result) {
+      setCepStatus('not-found')
+      return
+    }
+    setCepStatus('idle')
+
+    const matchedCity = cities.find(
+      (city) => city.name.toLowerCase() === result.city.toLowerCase() && city.state === result.state,
+    )
+
+    setValues((prev) => ({
+      ...prev,
+      address: result.street || prev.address,
+      neighborhood: result.neighborhood || prev.neighborhood,
+      cityState: matchedCity ? `${matchedCity.name}|${matchedCity.state}` : prev.cityState,
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -154,11 +180,27 @@ export function BusinessProfileForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        CEP
+        <input
+          value={values.zip}
+          onChange={(e) => update('zip', e.target.value)}
+          onBlur={handleCepBlur}
+          className={inputClass}
+          placeholder="00000-000"
+          maxLength={9}
+        />
+        {cepStatus === 'loading' && <span className="text-xs font-normal text-neutral-400">Buscando endereço...</span>}
+        {cepStatus === 'not-found' && (
+          <span className="text-xs font-normal text-red-600">CEP não encontrado, preencha manualmente.</span>
+        )}
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         Endereço
         <input value={values.address} onChange={(e) => update('address', e.target.value)} className={inputClass} required />
       </label>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
           Número
           <input value={values.number} onChange={(e) => update('number', e.target.value)} className={inputClass} />
@@ -166,10 +208,6 @@ export function BusinessProfileForm({
         <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
           Bairro
           <input value={values.neighborhood} onChange={(e) => update('neighborhood', e.target.value)} className={inputClass} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-          CEP
-          <input value={values.zip} onChange={(e) => update('zip', e.target.value)} className={inputClass} />
         </label>
       </div>
 

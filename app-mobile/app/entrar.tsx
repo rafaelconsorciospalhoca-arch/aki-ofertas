@@ -10,12 +10,13 @@ import { apiFetch, ApiError } from '@/api/client'
 
 WebBrowser.maybeCompleteAuthSession()
 
-type Step = 'options' | 'form'
+type Step = 'options' | 'form' | 'code'
 
 export default function EntrarScreen() {
   const { login } = useAuth()
   const [step, setStep] = useState<Step>('options')
   const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
@@ -25,7 +26,7 @@ export default function EntrarScreen() {
 
   // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
   // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
-  // derrubaria a tela inteira (inclusive o fluxo de e-mail).
+  // derrubaria a tela inteira (inclusive o fluxo de e-mail + código).
   const googleConfigured = Boolean(
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
       process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
@@ -63,27 +64,34 @@ export default function EntrarScreen() {
     }
   }
 
-  async function handleSubmit() {
+  async function handleRequestCode() {
+    setPending(true)
+    setError(null)
+    try {
+      await apiFetch('/auth/solicitar-codigo', { method: 'POST', body: { email } })
+      setStep('code')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o código.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function handleConfirmCode() {
     setPending(true)
     setError(null)
     try {
       const result = await apiFetch<{ token: string; user: { id: string; name: string; email: string } }>(
-        '/auth/entrar',
+        '/auth/confirmar-codigo',
         {
           method: 'POST',
-          body: {
-            email,
-            name: name || undefined,
-            city: city || undefined,
-            state: state || undefined,
-            phone: phone || undefined,
-          },
+          body: { email, code, name, city, state, phone },
         },
       )
       await login(result.token, result.user)
       router.back()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível entrar.')
+      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.')
     } finally {
       setPending(false)
     }
@@ -116,6 +124,7 @@ export default function EntrarScreen() {
       {step === 'form' && (
         <>
           <Text style={styles.title}>Seus dados</Text>
+          <Text style={styles.subtitle}>Depois disso só falta confirmar o código que enviaremos por e-mail.</Text>
           {error && <Text style={styles.error}>{error}</Text>}
           <TextInput
             style={styles.input}
@@ -144,10 +153,29 @@ export default function EntrarScreen() {
           />
           <Pressable
             style={styles.primaryButton}
-            onPress={handleSubmit}
+            onPress={handleRequestCode}
             disabled={pending || !email || !name || !city || !state || !phone}
           >
-            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
+            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Enviar código</Text>}
+          </Pressable>
+        </>
+      )}
+
+      {step === 'code' && (
+        <>
+          <Text style={styles.title}>Digite o código</Text>
+          <Text style={styles.subtitle}>Enviamos um código de 6 dígitos para {email}</Text>
+          {error && <Text style={styles.error}>{error}</Text>}
+          <TextInput
+            style={styles.input}
+            placeholder="000000"
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+          <Pressable style={styles.primaryButton} onPress={handleConfirmCode} disabled={pending || !code}>
+            {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Confirmar</Text>}
           </Pressable>
         </>
       )}
