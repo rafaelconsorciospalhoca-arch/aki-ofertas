@@ -63,4 +63,19 @@ describe('signUpConsumer', () => {
     expect(createCall.data.passwordHash).not.toBe('senha1234')
     expect(createCall.data.role).toBe('CONSUMER')
   })
+
+  it('normalizes the email case and whitespace before the check and the insert', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'new-user-id' } as never)
+
+    const result = await signUpConsumer({
+      name: 'Maria',
+      email: ' Maria@Gmail.com ',
+      password: 'senha1234',
+    })
+
+    expect(result).toEqual({ ok: true, userId: 'new-user-id' })
+    expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0].where.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.user.create).mock.calls[0][0].data.email).toBe('maria@gmail.com')
+  })
 })

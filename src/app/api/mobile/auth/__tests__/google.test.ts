@@ -34,7 +34,7 @@ describe('POST /api/mobile/auth/google', () => {
   it('creates a new user from the Google profile', async () => {
     vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Maria' })
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
-    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: false } as never)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
     const response = await POST(request({ idToken: 'good-token' }))
@@ -50,7 +50,7 @@ describe('POST /api/mobile/auth/google', () => {
 
   it('logs in an existing user', async () => {
     vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Maria' })
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: false } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
     const response = await POST(request({ idToken: 'good-token' }))
@@ -60,10 +60,72 @@ describe('POST /api/mobile/auth/google', () => {
 
   it('rejects a blocked user', async () => {
     vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Maria' })
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: true } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: true } as never)
 
     const response = await POST(request({ idToken: 'good-token' }))
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ ok: false, error: 'Conta bloqueada.' })
+  })
+
+  it('normalizes the email Google returns before the lookup and the insert', async () => {
+    vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: ' Maria@Gmail.com ', name: 'Maria' })
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'maria@gmail.com', role: 'CONSUMER', blocked: false } as never)
+    vi.mocked(createMobileSession).mockResolvedValue('a-token')
+
+    const response = await POST(request({ idToken: 'good-token' }))
+
+    expect(response.status).toBe(200)
+    expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0].where.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.user.create).mock.calls[0][0].data.email).toBe('maria@gmail.com')
+  })
+
+  it('rejects an existing non-consumer account', async () => {
+    vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Maria' })
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'MERCHANT', blocked: false } as never)
+
+    const response = await POST(request({ idToken: 'good-token' }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ ok: false, error: 'Esta conta não pode entrar pelo aplicativo.' })
+    expect(createMobileSession).not.toHaveBeenCalled()
+  })
+
+  it('rejects an existing admin account', async () => {
+    vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Ana' })
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Ana', email: 'user@example.com', role: 'ADMIN', blocked: false } as never)
+
+    const response = await POST(request({ idToken: 'good-token' }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ ok: false, error: 'Esta conta não pode entrar pelo aplicativo.' })
+  })
+
+  it('recovers by re-fetching when a concurrent request already created the user', async () => {
+    vi.mocked(verifyGoogleIdToken).mockResolvedValue({ email: 'user@example.com', name: 'Maria' })
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
+    vi.mocked(prisma.user.create).mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['email'] } }),
+    )
+    vi.mocked(createMobileSession).mockResolvedValue('a-token')
+
+    const response = await POST(request({ idToken: 'good-token' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      ok: true, token: 'a-token', user: { id: 'user-1', name: 'Maria', email: 'user@example.com' },
+    })
+  })
+
+  it('returns the JSON contract when an unexpected error escapes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(verifyGoogleIdToken).mockRejectedValue(new Error('network down'))
+
+    const response = await POST(request({ idToken: 'good-token' }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ ok: false, error: 'Erro interno. Tente novamente.' })
   })
 })

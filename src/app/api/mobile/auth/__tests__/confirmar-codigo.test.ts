@@ -89,7 +89,7 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     vi.mocked(verifyOtpCode).mockResolvedValue(true)
     vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
-    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: false } as never)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
     const response = await POST(request({ email: 'user@example.com', code: '123456', name: 'Maria' }))
@@ -107,7 +107,7 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
     vi.mocked(verifyOtpCode).mockResolvedValue(true)
     vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: false } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
     const response = await POST(request({ email: 'user@example.com', code: '123456' }))
@@ -119,10 +119,81 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
     vi.mocked(verifyOtpCode).mockResolvedValue(true)
     vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', blocked: true } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: true } as never)
 
     const response = await POST(request({ email: 'user@example.com', code: '123456' }))
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ ok: false, error: 'Conta bloqueada.' })
+  })
+
+  it('normalizes the email case and whitespace before the OTP and user lookups', async () => {
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
+    vi.mocked(verifyOtpCode).mockResolvedValue(true)
+    vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'maria@gmail.com', role: 'CONSUMER', blocked: false } as never)
+    vi.mocked(createMobileSession).mockResolvedValue('a-token')
+
+    const response = await POST(request({ email: ' Maria@Gmail.com ', code: '123456', name: 'Maria' }))
+
+    expect(response.status).toBe(200)
+    expect(vi.mocked(prisma.emailOtp.findFirst).mock.calls[0][0]?.where?.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0].where.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.user.create).mock.calls[0][0].data.email).toBe('maria@gmail.com')
+  })
+
+  it('rejects an existing non-consumer account', async () => {
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
+    vi.mocked(verifyOtpCode).mockResolvedValue(true)
+    vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'MERCHANT', blocked: false } as never)
+
+    const response = await POST(request({ email: 'user@example.com', code: '123456' }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ ok: false, error: 'Esta conta não pode entrar pelo aplicativo.' })
+    expect(createMobileSession).not.toHaveBeenCalled()
+  })
+
+  it('rejects an existing admin account', async () => {
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
+    vi.mocked(verifyOtpCode).mockResolvedValue(true)
+    vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Ana', email: 'user@example.com', role: 'ADMIN', blocked: false } as never)
+
+    const response = await POST(request({ email: 'user@example.com', code: '123456' }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ ok: false, error: 'Esta conta não pode entrar pelo aplicativo.' })
+  })
+
+  it('recovers by re-fetching when a concurrent request already created the user', async () => {
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
+    vi.mocked(verifyOtpCode).mockResolvedValue(true)
+    vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
+    vi.mocked(prisma.user.create).mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['email'] } }),
+    )
+    vi.mocked(createMobileSession).mockResolvedValue('a-token')
+
+    const response = await POST(request({ email: 'user@example.com', code: '123456', name: 'Maria' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      ok: true, token: 'a-token', user: { id: 'user-1', name: 'Maria', email: 'user@example.com' },
+    })
+  })
+
+  it('returns the JSON contract when an unexpected error escapes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(prisma.emailOtp.findFirst).mockRejectedValue(new Error('connection lost'))
+
+    const response = await POST(request({ email: 'user@example.com', code: '123456' }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ ok: false, error: 'Erro interno. Tente novamente.' })
   })
 })

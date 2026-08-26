@@ -69,4 +69,44 @@ describe('POST /api/mobile/auth/solicitar-codigo', () => {
 
     expect(sendOtpEmail).toHaveBeenCalledWith('user@example.com', expect.stringMatching(/^\d{6}$/))
   })
+
+  it('normalizes the email case and whitespace before every query and the insert', async () => {
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.emailOtp.count).mockResolvedValue(0)
+    vi.mocked(prisma.emailOtp.create).mockResolvedValue({} as never)
+
+    const response = await POST(request({ email: ' Maria@Gmail.com ' }))
+
+    expect(response.status).toBe(200)
+    expect(vi.mocked(prisma.emailOtp.findFirst).mock.calls[0][0]?.where?.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.emailOtp.count).mock.calls[0][0]?.where?.email).toBe('maria@gmail.com')
+    expect(vi.mocked(prisma.emailOtp.create).mock.calls[0][0].data.email).toBe('maria@gmail.com')
+    expect(sendOtpEmail).toHaveBeenCalledWith('maria@gmail.com', expect.stringMatching(/^\d{6}$/))
+  })
+
+  it('returns a JSON error instead of throwing when sending the email fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.emailOtp.count).mockResolvedValue(0)
+    vi.mocked(prisma.emailOtp.create).mockResolvedValue({} as never)
+    vi.mocked(sendOtpEmail).mockRejectedValue(new Error('Resend is down'))
+
+    const response = await POST(request({ email: 'user@example.com' }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: 'Não foi possível enviar o código. Tente novamente.',
+    })
+  })
+
+  it('returns the JSON contract when an unexpected error escapes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(prisma.emailOtp.findFirst).mockRejectedValue(new Error('connection lost'))
+
+    const response = await POST(request({ email: 'user@example.com' }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ ok: false, error: 'Erro interno. Tente novamente.' })
+  })
 })

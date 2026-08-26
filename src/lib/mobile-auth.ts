@@ -6,7 +6,9 @@ export const MAX_OTP_ATTEMPTS = 5
 export const MOBILE_SESSION_DAYS = 60
 
 export function generateOtpCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000))
+  // crypto.randomInt, not Math.random: V8's PRNG state is reconstructable from
+  // observed outputs, which would make a security code guessable.
+  return String(crypto.randomInt(100000, 1000000))
 }
 
 export async function hashOtpCode(code: string): Promise<string> {

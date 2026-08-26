@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NextResponse } from 'next/server'
 import { POST } from '@/app/api/mobile/cupons/gerar/route'
 import { requireMobileUser } from '@/lib/mobile-session'
-import { generateCouponForUser } from '@/actions/coupon-actions'
+import { generateCouponForUser } from '@/lib/coupons'
 
 vi.mock('@/lib/mobile-session', () => ({ requireMobileUser: vi.fn() }))
-vi.mock('@/actions/coupon-actions', () => ({ generateCouponForUser: vi.fn() }))
+vi.mock('@/lib/coupons', () => ({ generateCouponForUser: vi.fn() }))
 
 function request(body: unknown, authorized = true) {
   return new Request('https://example.com/api/mobile/cupons/gerar', {

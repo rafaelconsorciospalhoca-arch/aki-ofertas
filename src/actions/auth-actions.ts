@@ -6,7 +6,7 @@ import { hashPassword } from '@/lib/password'
 
 const signUpSchema = z.object({
   name: z.string().min(2, 'Informe seu nome.'),
-  email: z.string().email('E-mail inválido.'),
+  email: z.string().trim().email('E-mail inválido.'),
   phone: z.string().optional(),
   password: z.string().min(8, 'A senha precisa ter pelo menos 8 caracteres.'),
   city: z.string().optional(),
@@ -22,7 +22,11 @@ export async function signUpConsumer(input: SignUpInput): Promise<SignUpResult> 
     return { ok: false, error: parsed.error.issues[0].message }
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
+  // User.email is a case-sensitive unique column; normalizing keeps a single
+  // account per address across this form and the passwordless mobile flows.
+  const email = parsed.data.email.trim().toLowerCase()
+
+  const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
     return { ok: false, error: 'Este e-mail já está cadastrado.' }
   }
@@ -32,7 +36,7 @@ export async function signUpConsumer(input: SignUpInput): Promise<SignUpResult> 
   const user = await prisma.user.create({
     data: {
       name: parsed.data.name,
-      email: parsed.data.email,
+      email,
       phone: parsed.data.phone,
       passwordHash,
       role: 'CONSUMER',

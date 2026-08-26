@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireMobileUser } from '@/lib/mobile-session'
-import { generateCouponForUser } from '@/actions/coupon-actions'
+import { generateCouponForUser } from '@/lib/coupons'
 
 const bodySchema = z.object({ offerId: z.string().min(1) })
 
