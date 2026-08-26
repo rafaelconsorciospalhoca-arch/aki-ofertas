@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateCoupon, validateCoupon } from '@/actions/coupon-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
@@ -8,6 +8,7 @@ vi.mock('@/lib/db', () => ({
     $transaction: vi.fn(),
     coupon: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     business: { findFirst: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }))
 
@@ -49,6 +50,13 @@ const activeOffer = {
 }
 
 describe('generateCoupon', () => {
+  beforeEach(() => {
+    // Most tests exercise behavior downstream of the phone-on-file gate;
+    // give them a user who already has one and let the two phone-specific
+    // tests below override this.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ phone: '5546999990000' } as never)
+  })
+
   afterEach(() => {
     vi.clearAllMocks()
   })
@@ -57,6 +65,16 @@ describe('generateCoupon', () => {
     vi.mocked(auth).mockResolvedValue(null as never)
     const result = await generateCoupon('offer-1')
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the user has no phone on file', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ phone: null } as never)
+
+    const result = await generateCoupon('offer-1')
+
+    expect(result).toEqual({ ok: false, error: 'Informe seu telefone para resgatar o cupom.' })
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
   it('rejects when the offer does not exist or is not ACTIVE', async () => {

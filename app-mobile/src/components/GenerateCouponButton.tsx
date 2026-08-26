@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/api/client'
+
+const PHONE_REQUIRED_MESSAGE = 'Informe seu telefone para resgatar o cupom.'
 
 export function GenerateCouponButton({ offerId }: { offerId: string }) {
   const { token, authedFetch } = useAuth()
@@ -12,6 +14,8 @@ export function GenerateCouponButton({ offerId }: { offerId: string }) {
   const [code, setCode] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [needsPhone, setNeedsPhone] = useState(false)
+  const [phone, setPhone] = useState('')
 
   async function handlePress() {
     if (!token) {
@@ -29,8 +33,26 @@ export function GenerateCouponButton({ offerId }: { offerId: string }) {
       setCode(result.coupon.code)
       queryClient.invalidateQueries({ queryKey: ['cupons'] })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível gerar o cupom.')
+      const message = err instanceof ApiError ? err.message : 'Não foi possível gerar o cupom.'
+      if (message === PHONE_REQUIRED_MESSAGE) {
+        setNeedsPhone(true)
+      } else {
+        setError(message)
+      }
     } finally {
+      setPending(false)
+    }
+  }
+
+  async function handleSavePhone() {
+    setPending(true)
+    setError(null)
+    try {
+      await authedFetch('/perfil/telefone', { method: 'POST', body: { phone } })
+      setNeedsPhone(false)
+      await handlePress()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar o telefone.')
       setPending(false)
     }
   }
@@ -41,6 +63,25 @@ export function GenerateCouponButton({ offerId }: { offerId: string }) {
         <Text style={styles.codeLabel}>Seu código</Text>
         <Text style={styles.code}>{code}</Text>
         <Text style={styles.codeHint}>Mostre este código no estabelecimento</Text>
+      </View>
+    )
+  }
+
+  if (needsPhone) {
+    return (
+      <View>
+        <Text style={styles.phonePrompt}>Pra resgatar o cupom, informe seu telefone:</Text>
+        {error && <Text style={styles.error}>{error}</Text>}
+        <TextInput
+          style={styles.input}
+          placeholder="Telefone (com DDD)"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+        <Pressable style={styles.button} onPress={handleSavePhone} disabled={pending || !phone}>
+          {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Confirmar telefone</Text>}
+        </Pressable>
       </View>
     )
   }
@@ -63,4 +104,14 @@ const styles = StyleSheet.create({
   codeLabel: { fontSize: 12, color: colors.neutral500 },
   code: { fontSize: 28, fontWeight: '800', letterSpacing: 4, color: colors.green },
   codeHint: { fontSize: 12, color: colors.neutral500, marginTop: 4 },
+  phonePrompt: { fontSize: 13, color: colors.neutral900, textAlign: 'center', marginBottom: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.neutral200,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 8,
+  },
 })

@@ -82,6 +82,7 @@ export type CouponResult = { ok: true; coupon: CouponSummary } | { ok: false; er
 const OFFER_NOT_AVAILABLE = 'Oferta não encontrada.'
 const SOLD_OUT = 'Esta oferta esgotou.'
 const GENERATE_FAILED = 'Não foi possível gerar o cupom. Tente novamente.'
+const PHONE_REQUIRED = 'Informe seu telefone para resgatar o cupom.'
 const MAX_ATTEMPTS = 3
 
 function errorCode(err: unknown): string | undefined {
@@ -116,6 +117,13 @@ function toSummary(coupon: { id: string; code: string; expiresAt: Date }): Coupo
  * authorize `userId` itself first.
  */
 export async function generateCouponForUser(userId: string, offerId: string): Promise<CouponResult> {
+  // Marketing needs a phone number on file before a coupon is redeemable —
+  // Google sign-ins skip this at signup, so it's collected here instead.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } })
+  if (!user?.phone) {
+    return { ok: false, error: PHONE_REQUIRED }
+  }
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       // Serializable so that Postgres itself rejects concurrent transactions whose

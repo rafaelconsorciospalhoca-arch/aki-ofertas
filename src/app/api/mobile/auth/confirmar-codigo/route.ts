@@ -8,6 +8,9 @@ const bodySchema = z.object({
   email: z.string().trim().email(),
   code: z.string().min(6).max(6),
   name: z.string().min(2).optional(),
+  city: z.string().min(2).optional(),
+  state: z.string().length(2).optional(),
+  phone: z.string().min(8).optional(),
 })
 
 function isUniqueConstraintError(err: unknown): boolean {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: 'Dados inválidos.' }, { status: 400 })
     }
-    const { code, name } = parsed.data
+    const { code, name, city, state, phone } = parsed.data
     // User.email is a case-sensitive unique column; normalizing here keeps a
     // single account per address across OTP, Google and the site sign-up.
     const email = parsed.data.email.trim().toLowerCase()
@@ -51,12 +54,15 @@ export async function POST(request: Request) {
     let user = await prisma.user.findUnique({ where: { email } })
     let isNewUser = false
     if (!user) {
-      if (!name) {
-        return NextResponse.json({ ok: false, error: 'Informe seu nome.' }, { status: 400 })
+      // Marketing needs city/state/phone on every email+code signup (Google
+      // signups skip this — they enter directly with just name/email, and are
+      // asked for a phone number later, at coupon redemption).
+      if (!name || !city || !state || !phone) {
+        return NextResponse.json({ ok: false, error: 'Informe seus dados para continuar.' }, { status: 400 })
       }
       try {
         user = await prisma.user.create({
-          data: { email, name, role: 'CONSUMER', passwordHash: null },
+          data: { email, name, city, state: state.toUpperCase(), phone, role: 'CONSUMER', passwordHash: null },
         })
         isNewUser = true
       } catch (err) {

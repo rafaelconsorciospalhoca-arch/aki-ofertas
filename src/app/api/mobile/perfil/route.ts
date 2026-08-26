@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
-    select: { id: true, name: true, email: true, city: true },
+    select: { id: true, name: true, email: true, city: true, phone: true },
   })
 
   return NextResponse.json({ ok: true, data: user })

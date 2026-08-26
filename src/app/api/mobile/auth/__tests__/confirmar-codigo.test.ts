@@ -73,18 +73,19 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     )
   })
 
-  it('rejects a new user without a name', async () => {
+  it('rejects a new user missing any of name/city/state/phone', async () => {
     vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
     vi.mocked(verifyOtpCode).mockResolvedValue(true)
     vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
 
-    const response = await POST(request({ email: 'user@example.com', code: '123456' }))
+    const response = await POST(request({ email: 'user@example.com', code: '123456', name: 'Maria' }))
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ ok: false, error: 'Informe seu nome.' })
+    expect(await response.json()).toEqual({ ok: false, error: 'Informe seus dados para continuar.' })
+    expect(prisma.user.create).not.toHaveBeenCalled()
   })
 
-  it('creates a new user and returns a token', async () => {
+  it('creates a new user with city/state/phone and returns a token', async () => {
     vi.mocked(prisma.emailOtp.findFirst).mockResolvedValue(validOtp as never)
     vi.mocked(verifyOtpCode).mockResolvedValue(true)
     vi.mocked(prisma.emailOtp.update).mockResolvedValue({} as never)
@@ -92,7 +93,9 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
-    const response = await POST(request({ email: 'user@example.com', code: '123456', name: 'Maria' }))
+    const response = await POST(
+      request({ email: 'user@example.com', code: '123456', name: 'Maria', city: 'Marmeleiro', state: 'pr', phone: '5546999990000' }),
+    )
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
@@ -101,6 +104,9 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     const data = vi.mocked(prisma.user.create).mock.calls[0][0].data
     expect(data.role).toBe('CONSUMER')
     expect(data.passwordHash).toBeNull()
+    expect(data.city).toBe('Marmeleiro')
+    expect(data.state).toBe('PR')
+    expect(data.phone).toBe('5546999990000')
   })
 
   it('logs in an existing user without requiring a name', async () => {
@@ -134,7 +140,9 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'maria@gmail.com', role: 'CONSUMER', blocked: false } as never)
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
-    const response = await POST(request({ email: ' Maria@Gmail.com ', code: '123456', name: 'Maria' }))
+    const response = await POST(
+      request({ email: ' Maria@Gmail.com ', code: '123456', name: 'Maria', city: 'Marmeleiro', state: 'PR', phone: '5546999990000' }),
+    )
 
     expect(response.status).toBe(200)
     expect(vi.mocked(prisma.emailOtp.findFirst).mock.calls[0][0]?.where?.email).toBe('maria@gmail.com')
@@ -179,7 +187,9 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     )
     vi.mocked(createMobileSession).mockResolvedValue('a-token')
 
-    const response = await POST(request({ email: 'user@example.com', code: '123456', name: 'Maria' }))
+    const response = await POST(
+      request({ email: 'user@example.com', code: '123456', name: 'Maria', city: 'Marmeleiro', state: 'PR', phone: '5546999990000' }),
+    )
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({

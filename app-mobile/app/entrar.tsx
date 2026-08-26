@@ -18,7 +18,10 @@ export default function EntrarScreen() {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
-  const [needsName, setNeedsName] = useState(false)
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [phone, setPhone] = useState('')
+  const [needsProfile, setNeedsProfile] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,14 +84,24 @@ export default function EntrarScreen() {
     try {
       const result = await apiFetch<{ token: string; user: { id: string; name: string; email: string } }>(
         '/auth/confirmar-codigo',
-        { method: 'POST', body: { email, code, name: name || undefined } },
+        {
+          method: 'POST',
+          body: {
+            email,
+            code,
+            name: name || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            phone: phone || undefined,
+          },
+        },
       )
       await login(result.token, result.user)
       router.back()
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.'
-      if (message === 'Informe seu nome.') {
-        setNeedsName(true)
+      if (message === 'Informe seus dados para continuar.') {
+        setNeedsProfile(true)
         setError(null)
       } else {
         setError(message)
@@ -153,10 +166,32 @@ export default function EntrarScreen() {
             keyboardType="number-pad"
             maxLength={6}
           />
-          {needsName && (
-            <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
+          {needsProfile && (
+            <>
+              <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
+              <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
+              <TextInput
+                style={styles.input}
+                placeholder="Estado (ex: PR)"
+                value={state}
+                onChangeText={setState}
+                autoCapitalize="characters"
+                maxLength={2}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Telefone (com DDD)"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </>
           )}
-          <Pressable style={styles.primaryButton} onPress={handleConfirmCode} disabled={pending || !code}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleConfirmCode}
+            disabled={pending || !code || (needsProfile && (!name || !city || !state || !phone))}
+          >
             {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Confirmar</Text>}
           </Pressable>
         </>

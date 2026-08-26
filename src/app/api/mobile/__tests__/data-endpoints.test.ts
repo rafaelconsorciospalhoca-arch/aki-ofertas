@@ -9,6 +9,7 @@ import { GET as getLojasSearch } from '@/app/api/mobile/lojas/route'
 import { GET as getCategorias } from '@/app/api/mobile/categorias/route'
 import { GET as getCidades } from '@/app/api/mobile/cidades/route'
 import { GET as getPerfil } from '@/app/api/mobile/perfil/route'
+import { POST as postTelefone } from '@/app/api/mobile/perfil/telefone/route'
 import { getFeaturedOffers, getOffersList, getOfferBySlug } from '@/lib/offers'
 import { getBusinessBySlug, searchBusinesses } from '@/lib/businesses'
 import { getActiveCategories, getActiveCities } from '@/lib/categories'
@@ -23,7 +24,7 @@ vi.mock('@/lib/offers', () => ({
 vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn(), searchBusinesses: vi.fn() }))
 vi.mock('@/lib/categories', () => ({ getActiveCategories: vi.fn(), getActiveCities: vi.fn() }))
 vi.mock('@/lib/mobile-session', () => ({ requireMobileUser: vi.fn() }))
-vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: vi.fn() } } }))
+vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: vi.fn(), update: vi.fn() } } }))
 
 describe('parseLocationParams', () => {
   it('parses lat/lng when both are present', () => {
@@ -166,12 +167,56 @@ describe('GET /api/mobile/perfil', () => {
 
   it('returns the profile for the authenticated user', async () => {
     vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro' } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro', phone: '5546999990000',
+    } as never)
 
     const response = await getPerfil(new Request('https://example.com/api/mobile/perfil'))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
-      ok: true, data: { id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro' },
+      ok: true,
+      data: { id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro', phone: '5546999990000' },
+    })
+  })
+})
+
+describe('POST /api/mobile/perfil/telefone', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  function request(body: unknown) {
+    return new Request('https://example.com/api/mobile/perfil/telefone', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
+  it('returns the 401 from requireMobileUser when unauthenticated', async () => {
+    const unauthorized = NextResponse.json({ ok: false, error: 'Sessão expirada.' }, { status: 401 })
+    vi.mocked(requireMobileUser).mockResolvedValue(unauthorized)
+
+    const response = await postTelefone(request({ phone: '5546999990000' }))
+    expect(response.status).toBe(401)
+  })
+
+  it('rejects an invalid phone', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await postTelefone(request({ phone: '123' }))
+    expect(response.status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  it('updates the phone for the authenticated user', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
+
+    const response = await postTelefone(request({ phone: '5546999990000' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { phone: '5546999990000' },
     })
   })
 })
