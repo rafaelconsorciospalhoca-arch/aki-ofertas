@@ -4,7 +4,7 @@ import * as kv from '@/storage/kv'
 const LOCATION_KEY = 'aki_location'
 
 export type StoredLocation =
-  | { type: 'gps'; lat: number; lng: number }
+  | { type: 'gps'; lat: number; lng: number; cityLabel?: string }
   | { type: 'city'; name: string; state: string }
 
 export async function getStoredLocation(): Promise<StoredLocation | null> {

@@ -7,8 +7,11 @@ import type { Category } from '@/api/types'
 const TILE_COLORS = ['#FDE8E4', '#F1E4FD', '#E4EEFD', '#FDE4EF', '#E4FDF0', '#E4E9FD', '#FDF3E4', '#E4FDFA']
 const ICON_COLORS = ['#E4572E', '#8E44AD', '#2E7FE4', '#D42E7F', '#17A94E', '#4A4AE4', '#D4972E', '#2EBBAA']
 
-function firstWord(name: string): string {
-  return name.split(/[ e]/i)[0]
+// Category names read "X e Y" (e.g. "Restaurantes e Lanchonetes") — split on
+// the standalone conjunction, not on every letter "e", which used to chop
+// names like "Saúde" down to "Saúd".
+export function firstWord(name: string): string {
+  return name.split(/\s+e\s+/i)[0]
 }
 
 export function CategoryGrid({ categories }: { categories: Category[] }) {

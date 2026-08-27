@@ -5,6 +5,7 @@ import { router, Stack } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { setStoredLocation } from '@/storage/location'
 import { useCities } from '@/api/hooks/useCities'
+import { apiFetch } from '@/api/client'
 
 export default function OnboardingScreen() {
   const [requesting, setRequesting] = useState(false)
@@ -20,11 +21,20 @@ export default function OnboardingScreen() {
         return
       }
       const position = await Location.getCurrentPositionAsync({})
-      await setStoredLocation({
-        type: 'gps',
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      })
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+
+      // Best-effort: a friendly city name is nicer than "Perto de você", but
+      // the app works fine with just coordinates if this lookup fails.
+      let cityLabel: string | undefined
+      try {
+        const resolved = await apiFetch<{ city: string; state: string }>(`/geocode/reverso?lat=${lat}&lng=${lng}`)
+        cityLabel = `${resolved.city} - ${resolved.state}`
+      } catch {
+        cityLabel = undefined
+      }
+
+      await setStoredLocation({ type: 'gps', lat, lng, cityLabel })
       router.replace('/(tabs)')
     } finally {
       setRequesting(false)

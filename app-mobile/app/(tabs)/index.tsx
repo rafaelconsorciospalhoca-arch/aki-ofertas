@@ -17,7 +17,7 @@ import type { OfferListItem, BusinessSummary } from '@/api/types'
 function locationLabel(location: StoredLocation | null): string | null {
   if (!location) return null
   if (location.type === 'city') return `${location.name} · ${location.state}`
-  return 'Perto de você'
+  return location.cityLabel ?? 'Perto de você'
 }
 
 function firstName(name: string): string {
