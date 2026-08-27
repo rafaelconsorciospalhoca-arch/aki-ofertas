@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { slugify, randomSlugSuffix } from '@/lib/slug'
 import { auth } from '@/lib/auth'
+import { geocodeAddress } from '@/lib/geocode'
 
 const signUpMerchantSchema = z.object({
   ownerName: z.string().min(2, 'Informe seu nome.'),
@@ -16,8 +17,6 @@ const signUpMerchantSchema = z.object({
   address: z.string().min(3, 'Informe o endereço.'),
   city: z.string().min(2, 'Informe a cidade.'),
   state: z.string().length(2, 'Use a sigla do estado (ex: PR).'),
-  lat: z.number({ error: 'Informe a latitude.' }),
-  lng: z.number({ error: 'Informe a longitude.' }),
 })
 
 type SignUpMerchantInput = z.infer<typeof signUpMerchantSchema>
@@ -39,9 +38,15 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
     return { ok: false, error: 'Não foi possível concluir o cadastro. Tente novamente mais tarde.' }
   }
 
+  const state = parsed.data.state.toUpperCase()
+
+  const coordinates = await geocodeAddress(`${parsed.data.address}, ${parsed.data.city} - ${state}, Brasil`)
+  if (!coordinates) {
+    return { ok: false, error: 'Não foi possível localizar esse endereço. Confira e tente novamente.' }
+  }
+
   const passwordHash = await hashPassword(parsed.data.password)
   const slug = `${slugify(parsed.data.businessName)}-${randomSlugSuffix()}`
-  const state = parsed.data.state.toUpperCase()
   const primaryCity = await prisma.city.findFirst({ where: { name: parsed.data.city, state } })
 
   const business = await prisma.$transaction(async (tx) => {
@@ -63,8 +68,8 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
         address: parsed.data.address,
         city: parsed.data.city,
         state,
-        lat: parsed.data.lat,
-        lng: parsed.data.lng,
+        lat: coordinates.lat,
+        lng: coordinates.lng,
         status: 'PENDING',
         planId: freePlan.id,
         slug,

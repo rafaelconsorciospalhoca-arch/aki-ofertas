@@ -14,8 +14,6 @@ type Values = {
   whatsapp: string
   address: string
   cityState: string
-  lat: string
-  lng: string
 }
 
 export function MerchantSignupForm({
@@ -39,8 +37,6 @@ export function MerchantSignupForm({
     whatsapp: '',
     address: '',
     cityState: '',
-    lat: '',
-    lng: '',
   })
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
@@ -74,13 +70,6 @@ export function MerchantSignupForm({
     e.preventDefault()
     setError(null)
 
-    const lat = Number(values.lat)
-    const lng = Number(values.lng)
-    if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      setError('Informe latitude e longitude válidas.')
-      return
-    }
-
     const [city, state] = values.cityState.split('|')
     if (!city || !state) {
       setError('Escolha uma cidade.')
@@ -99,8 +88,6 @@ export function MerchantSignupForm({
         address: values.address,
         city,
         state,
-        lat,
-        lng,
       })
 
       if (!result.ok) {
@@ -156,14 +143,6 @@ export function MerchantSignupForm({
           </option>
         ))}
       </select>
-      <div className="grid grid-cols-2 gap-3">
-        <input placeholder="Latitude" value={values.lat} onChange={(e) => update('lat', e.target.value)} className={inputClass} required />
-        <input placeholder="Longitude" value={values.lng} onChange={(e) => update('lng', e.target.value)} className={inputClass} required />
-      </div>
-      <p className="text-xs text-neutral-400">
-        Dica: clique com o botão direito no Google Maps sobre o endereço da sua empresa para copiar as coordenadas.
-      </p>
-
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button

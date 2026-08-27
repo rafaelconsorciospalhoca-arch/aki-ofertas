@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { signUpMerchant, updateBusiness } from '@/actions/merchant-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { geocodeAddress } from '@/lib/geocode'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -17,6 +18,10 @@ vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
 }))
 
+vi.mock('@/lib/geocode', () => ({
+  geocodeAddress: vi.fn(),
+}))
+
 const validInput = {
   ownerName: 'João Silva',
   email: 'joao@example.com',
@@ -27,8 +32,6 @@ const validInput = {
   address: 'Rua das Flores, 10',
   city: 'Marmeleiro',
   state: 'pr',
-  lat: -25.9,
-  lng: -53.05,
 }
 
 describe('signUpMerchant', () => {
@@ -64,10 +67,21 @@ describe('signUpMerchant', () => {
     })
   })
 
+  it('fails gracefully when the address cannot be geocoded', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-free', name: 'Grátis' } as never)
+    vi.mocked(geocodeAddress).mockResolvedValue(null)
+
+    const result = await signUpMerchant(validInput)
+
+    expect(result).toEqual({ ok: false, error: 'Não foi possível localizar esse endereço. Confira e tente novamente.' })
+  })
+
   it('creates the owner and business, uppercasing the state and hashing the password', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-free', name: 'Grátis' } as never)
     vi.mocked(prisma.city.findFirst).mockResolvedValue({ id: 'city-1', name: 'Marmeleiro', state: 'PR' } as never)
+    vi.mocked(geocodeAddress).mockResolvedValue({ lat: -25.9, lng: -53.05 })
 
     const userCreate = vi.fn().mockResolvedValue({ id: 'user-1' })
     const businessCreate = vi.fn().mockResolvedValue({ id: 'biz-1' })
@@ -92,6 +106,9 @@ describe('signUpMerchant', () => {
     expect(businessData.planId).toBe('plan-free')
     expect((businessData.slug as string).startsWith('pizza-boa-')).toBe(true)
     expect(businessData.serviceCities).toEqual({ connect: { id: 'city-1' } })
+    expect(businessData.lat).toBe(-25.9)
+    expect(businessData.lng).toBe(-53.05)
+    expect(geocodeAddress).toHaveBeenCalledWith('Rua das Flores, 10, Marmeleiro - PR, Brasil')
   })
 })
 
