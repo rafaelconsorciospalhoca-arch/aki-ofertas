@@ -49,15 +49,18 @@ export default function EntrarScreen() {
   useEffect(() => {
     if (!response) return
 
-    if (response.type === 'success' && response.authentication?.idToken) {
-      handleGoogleToken(response.authentication.idToken)
-      return
-    }
     if (response.type === 'success') {
-      // Google returned but without an idToken — should not happen with
-      // useIdTokenAuthRequest, but fail loudly instead of doing nothing.
-      console.error('Google auth succeeded without an idToken', response)
-      setError('O Google não retornou os dados esperados. Tente novamente.')
+      // expo-auth-session only fills `response.authentication` when the
+      // response includes an access_token — the id_token-only implicit flow
+      // (what useIdTokenAuthRequest requests) never sets it. The id_token is
+      // in the raw returned params instead.
+      const idToken = response.authentication?.idToken ?? (response.params?.id_token as string | undefined)
+      if (idToken) {
+        handleGoogleToken(idToken)
+      } else {
+        console.error('Google auth succeeded without an idToken', response)
+        setError('O Google não retornou os dados esperados. Tente novamente.')
+      }
       return
     }
     if (response.type === 'error') {
@@ -145,6 +148,24 @@ export default function EntrarScreen() {
               <Text style={styles.subtitle}>Entre para ver e resgatar as melhores ofertas da sua cidade.</Text>
               {error && <Text style={styles.error}>{error}</Text>}
 
+              <TextInput
+                style={styles.input}
+                placeholder="E-mail"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <Pressable style={styles.primaryButton} onPress={handleRequestCode} disabled={pending || !email}>
+                {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OU</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
               <Pressable
                 style={[styles.googleButton, !googleConfigured && styles.disabled]}
                 onPress={() => promptAsync()}
@@ -163,16 +184,9 @@ export default function EntrarScreen() {
                 <Text style={styles.hintText}>Entrar com Google ainda não está disponível.</Text>
               )}
 
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OU</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
               <Pressable style={styles.secondaryButton} onPress={() => setStep('form')}>
-                <Text style={styles.secondaryButtonText}>Continuar com e-mail</Text>
+                <Text style={styles.secondaryButtonText}>Criar conta gratuita</Text>
               </Pressable>
-              <Text style={styles.hintText}>Já tem conta? Use a mesma opção que usou da primeira vez.</Text>
 
               <Pressable onPress={() => Linking.openURL('https://akiofertas.com.br/comerciante/cadastro')}>
                 <Text style={styles.footerText}>
@@ -184,8 +198,8 @@ export default function EntrarScreen() {
 
           {step === 'form' && (
             <>
-              <Text style={styles.title}>Entrar com e-mail</Text>
-              <Text style={styles.subtitle}>Já tem conta? Só o e-mail. Primeiro acesso? Preencha tudo pra ir mais rápido.</Text>
+              <Text style={styles.title}>Criar conta gratuita</Text>
+              <Text style={styles.subtitle}>Preencha seus dados para começar a resgatar ofertas.</Text>
               {error && <Text style={styles.error}>{error}</Text>}
               <TextInput
                 style={styles.input}
@@ -195,8 +209,8 @@ export default function EntrarScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
-              <TextInput style={styles.input} placeholder="Seu nome (primeiro acesso)" value={name} onChangeText={setName} />
-              <TextInput style={styles.input} placeholder="Cidade (primeiro acesso)" value={city} onChangeText={setCity} />
+              <TextInput style={styles.input} placeholder="Seu nome" value={name} onChangeText={setName} />
+              <TextInput style={styles.input} placeholder="Cidade" value={city} onChangeText={setCity} />
               <TextInput
                 style={styles.input}
                 placeholder="Estado (ex: PR)"
@@ -212,8 +226,15 @@ export default function EntrarScreen() {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
               />
-              <Pressable style={styles.primaryButton} onPress={handleRequestCode} disabled={pending || !email}>
+              <Pressable
+                style={styles.primaryButton}
+                onPress={handleRequestCode}
+                disabled={pending || !email || !name || !city || !state || !phone}
+              >
                 {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Enviar código</Text>}
+              </Pressable>
+              <Pressable onPress={() => setStep('options')}>
+                <Text style={styles.hintText}>Já tem conta? Voltar para entrar</Text>
               </Pressable>
             </>
           )}
