@@ -1,14 +1,21 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { getActiveCategories } from '@/lib/categories'
+import { getActiveCategories, getCitiesWithActiveBusinesses } from '@/lib/categories'
 import { getFeaturedOffers } from '@/lib/offers'
 import { GEO_COOKIE, parseGeoCookie, CITY_COOKIE, parseCityCookie } from '@/lib/location'
 import { CategoryGrid } from '@/components/categories/CategoryGrid'
 import { OfferCard } from '@/components/offers/OfferCard'
+import { LandingPage } from '@/components/landing/LandingPage'
 
 export default async function HomePage() {
   const location = parseGeoCookie(cookies().get(GEO_COOKIE)?.value)
   const city = location ? null : parseCityCookie(cookies().get(CITY_COOKIE)?.value)
+
+  if (!location && !city) {
+    const [categories, cities] = await Promise.all([getActiveCategories(), getCitiesWithActiveBusinesses()])
+    return <LandingPage categories={categories} cities={cities} />
+  }
+
   const [categories, offers] = await Promise.all([
     getActiveCategories(),
     getFeaturedOffers({ location, city, limit: 10 }),
@@ -35,19 +42,6 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-
-        {!location && !city && (
-          <Link
-            href="/onboarding"
-            className="mt-4 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2.5 text-xs font-bold text-white"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="h-4 w-4 flex-shrink-0">
-              <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" />
-              <circle cx="12" cy="9.5" r="2" />
-            </svg>
-            Ative sua localização para ver ofertas perto de você
-          </Link>
-        )}
       </div>
 
       <div className="flex flex-col gap-5 p-4">

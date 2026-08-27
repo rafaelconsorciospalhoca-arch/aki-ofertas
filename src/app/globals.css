@@ -17,3 +17,14 @@ body {
     text-wrap: balance;
   }
 }
+
+/* The landing page has its own header/footer and shouldn't show the mobile
+   app's fixed bottom nav — detected purely via CSS so there's no client-side
+   flash or need to thread pathname/cookie state into the layout's client
+   shell component. */
+.consumer-shell:has(.landing-page) nav {
+  display: none;
+}
+.consumer-shell:has(.landing-page) main {
+  padding-bottom: 0;
+}

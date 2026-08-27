@@ -35,7 +35,7 @@ export function ConsumerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50">
+    <div className="consumer-shell flex min-h-screen flex-col bg-neutral-50">
       <main className="flex-1 pb-16">{children}</main>
       <nav className="fixed bottom-0 left-0 right-0 z-10 flex justify-around border-t border-neutral-200 bg-white pb-[env(safe-area-inset-bottom)] pt-1.5 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
         {NAV_ITEMS.map((item) => {
