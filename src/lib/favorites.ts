@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { toOfferListItem, type OfferListItem } from '@/lib/offers'
+import { getRatingsForBusinesses } from '@/lib/reviews'
 import type { BusinessSummary } from '@/lib/businesses'
 
 export type FavoritesResult = { offers: OfferListItem[]; businesses: BusinessSummary[] }
@@ -14,12 +15,21 @@ export async function getFavoritesForUser(userId: string): Promise<FavoritesResu
     },
   })
 
+  const businessIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.offer?.businessId ?? row.business?.id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  )
+  const ratings = await getRatingsForBusinesses(businessIds)
+
   const offers: OfferListItem[] = []
   const businesses: BusinessSummary[] = []
 
   for (const row of rows) {
     if (row.offer && row.offer.status === 'ACTIVE') {
-      offers.push(toOfferListItem(row.offer, row.offer.business, null))
+      offers.push(toOfferListItem(row.offer, row.offer.business, null, ratings.get(row.offer.businessId) ?? null))
     } else if (row.business && row.business.status === 'ACTIVE') {
       businesses.push({
         id: row.business.id,
@@ -29,6 +39,7 @@ export async function getFavoritesForUser(userId: string): Promise<FavoritesResu
         categoryName: row.business.category.name,
         city: row.business.city,
         state: row.business.state,
+        rating: ratings.get(row.business.id) ?? null,
       })
     }
   }

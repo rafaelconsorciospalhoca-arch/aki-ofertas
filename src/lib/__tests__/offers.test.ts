@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 vi.mock('@/lib/db', () => ({
   prisma: {
     offer: { findMany: vi.fn(), findUnique: vi.fn() },
+    review: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -97,6 +98,17 @@ describe('getFeaturedOffers', () => {
     const result = await getFeaturedOffers({ location: { lat: -25.9006, lng: -53.0489 }, limit: 10 })
 
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer', 'pizza-grande'])
+  })
+
+  it('attaches the business rating from getRatingsForBusinesses', async () => {
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([nearOffer] as never)
+    vi.mocked(prisma.review.groupBy).mockResolvedValue([
+      { businessId: 'biz-1', _avg: { rating: 4.5 }, _count: 3 },
+    ] as never)
+
+    const result = await getFeaturedOffers({ location: null, limit: 10 })
+
+    expect(result[0].rating).toEqual({ average: 4.5, count: 3 })
   })
 
   it('queries only ACTIVE offers ordered by createdAt desc when there is no location', async () => {

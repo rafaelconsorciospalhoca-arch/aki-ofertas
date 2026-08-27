@@ -1,5 +1,6 @@
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import type { BusinessSummary } from '@/api/types'
 
@@ -12,7 +13,15 @@ export function BusinessCard({ business }: { business: BusinessSummary }) {
         <View style={styles.logoPlaceholder} />
       )}
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>{business.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{business.name}</Text>
+          {business.rating && (
+            <View style={styles.ratingBadge}>
+              <Star size={11} color={colors.amber} fill={colors.amber} />
+              <Text style={styles.ratingText}>{business.rating.average.toFixed(1)}</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.meta} numberOfLines={1}>
           {business.categoryName} · {business.city}
         </Text>
@@ -38,6 +47,9 @@ const styles = StyleSheet.create({
   logo: { width: 48, height: 48, borderRadius: 12 },
   logoPlaceholder: { width: 48, height: 48, borderRadius: 12, backgroundColor: colors.neutral100 },
   info: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.neutral900 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { fontSize: 14, fontWeight: '700', color: colors.neutral900, flexShrink: 1 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ratingText: { fontSize: 11, fontWeight: '700', color: colors.neutral900 },
   meta: { fontSize: 12, color: colors.neutral500 },
 })

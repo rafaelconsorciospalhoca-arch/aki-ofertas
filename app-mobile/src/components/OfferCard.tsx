@@ -1,5 +1,6 @@
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import type { OfferListItem } from '@/api/types'
@@ -19,7 +20,15 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>{offer.title}</Text>
-        <Text style={styles.business} numberOfLines={1}>{offer.businessName}</Text>
+        <View style={styles.businessRow}>
+          <Text style={styles.business} numberOfLines={1}>{offer.businessName}</Text>
+          {offer.rating && (
+            <View style={styles.ratingBadge}>
+              <Star size={11} color={colors.amber} fill={colors.amber} />
+              <Text style={styles.ratingText}>{offer.rating.average.toFixed(1)}</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.priceRow}>
           <Text style={styles.originalPrice}>{formatCents(offer.originalPrice)}</Text>
           <Text style={styles.discountPrice}>{formatCents(offer.discountPrice)}</Text>
@@ -50,7 +59,10 @@ const styles = StyleSheet.create({
   discountText: { color: colors.white, fontSize: 10, fontWeight: '700' },
   info: { flex: 1, justifyContent: 'center' },
   title: { fontSize: 14, fontWeight: '700', color: colors.neutral900 },
-  business: { fontSize: 12, color: colors.neutral500 },
+  businessRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  business: { fontSize: 12, color: colors.neutral500, flexShrink: 1 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ratingText: { fontSize: 11, fontWeight: '700', color: colors.neutral900 },
   priceRow: { flexDirection: 'row', gap: 8, alignItems: 'baseline', marginTop: 4 },
   originalPrice: { fontSize: 12, color: colors.neutral400, textDecorationLine: 'line-through' },
   discountPrice: { fontSize: 16, fontWeight: '700', color: colors.green },

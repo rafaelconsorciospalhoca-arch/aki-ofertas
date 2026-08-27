@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
+import QRCode from 'react-native-qrcode-svg'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/api/client'
@@ -61,6 +62,9 @@ export function GenerateCouponButton({ offerId, icon }: { offerId: string; icon?
     return (
       <View style={styles.codeBox}>
         <Text style={styles.codeLabel}>Seu código</Text>
+        <View style={styles.qrWrapper}>
+          <QRCode value={code} size={140} />
+        </View>
         <Text style={styles.code}>{code}</Text>
         <Text style={styles.codeHint}>Mostre este código no estabelecimento</Text>
       </View>
@@ -117,6 +121,7 @@ const styles = StyleSheet.create({
   error: { color: colors.red, fontSize: 13, textAlign: 'center', marginBottom: 8 },
   codeBox: { backgroundColor: '#E9F9EF', borderRadius: 12, padding: 16, alignItems: 'center' },
   codeLabel: { fontSize: 12, color: colors.neutral500 },
+  qrWrapper: { backgroundColor: colors.white, borderRadius: 12, padding: 12, marginTop: 8 },
   code: { fontSize: 28, fontWeight: '800', letterSpacing: 4, color: colors.green },
   codeHint: { fontSize: 12, color: colors.neutral500, marginTop: 4 },
   phonePrompt: { fontSize: 13, color: colors.neutral900, textAlign: 'center', marginBottom: 8 },

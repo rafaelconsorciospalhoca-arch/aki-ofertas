@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getReviewsForBusinessSlug, upsertReviewForBusinessSlug } from '@/lib/reviews'
+import { getReviewsForBusinessSlug, upsertReviewForBusinessSlug, getRatingsForBusinesses } from '@/lib/reviews'
 import { prisma } from '@/lib/db'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
     business: { findUnique: vi.fn() },
-    review: { aggregate: vi.fn(), findMany: vi.fn(), upsert: vi.fn() },
+    review: { aggregate: vi.fn(), findMany: vi.fn(), upsert: vi.fn(), groupBy: vi.fn() },
   },
 }))
 
@@ -40,6 +40,33 @@ describe('getReviewsForBusinessSlug', () => {
     })
     expect(prisma.review.aggregate).toHaveBeenCalledWith({
       where: { businessId: 'biz-1' },
+      _avg: { rating: true },
+      _count: true,
+    })
+  })
+})
+
+describe('getRatingsForBusinesses', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns an empty map without querying when given no ids', async () => {
+    const result = await getRatingsForBusinesses([])
+    expect(result.size).toBe(0)
+    expect(prisma.review.groupBy).not.toHaveBeenCalled()
+  })
+
+  it('maps average and count per business, omitting businesses with no reviews', async () => {
+    vi.mocked(prisma.review.groupBy).mockResolvedValue([
+      { businessId: 'biz-1', _avg: { rating: 4.5 }, _count: 2 },
+    ] as never)
+
+    const result = await getRatingsForBusinesses(['biz-1', 'biz-2'])
+
+    expect(result.get('biz-1')).toEqual({ average: 4.5, count: 2 })
+    expect(result.has('biz-2')).toBe(false)
+    expect(prisma.review.groupBy).toHaveBeenCalledWith({
+      by: ['businessId'],
+      where: { businessId: { in: ['biz-1', 'biz-2'] } },
       _avg: { rating: true },
       _count: true,
     })

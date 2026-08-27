@@ -1,5 +1,6 @@
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import type { OfferListItem } from '@/api/types'
@@ -19,7 +20,15 @@ export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
       </View>
       <View style={styles.info}>
         <Text style={styles.price}>{formatCents(offer.discountPrice)}</Text>
-        <Text style={styles.title} numberOfLines={1}>{offer.title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>{offer.title}</Text>
+          {offer.rating && (
+            <View style={styles.ratingBadge}>
+              <Star size={11} color={colors.amber} fill={colors.amber} />
+              <Text style={styles.ratingText}>{offer.rating.average.toFixed(1)}</Text>
+            </View>
+          )}
+        </View>
         {offer.distanceLabel && <Text style={styles.distance}>📍 {offer.distanceLabel}</Text>}
       </View>
     </Pressable>
@@ -52,6 +61,9 @@ const styles = StyleSheet.create({
   tagText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   info: { padding: 12, gap: 2 },
   price: { fontSize: 20, fontWeight: '800', color: colors.green },
-  title: { fontSize: 13, color: colors.neutral500 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { fontSize: 13, color: colors.neutral500, flexShrink: 1 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ratingText: { fontSize: 11, fontWeight: '700', color: colors.neutral900 },
   distance: { fontSize: 11, color: colors.neutral400, marginTop: 4 },
 })

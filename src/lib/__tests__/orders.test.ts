@@ -15,16 +15,28 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+vi.mock('@/lib/email', () => ({
+  sendNewOrderEmail: vi.fn().mockResolvedValue(undefined),
+  sendOrderStatusEmail: vi.fn().mockResolvedValue(undefined),
+}))
+
 // order.findFirst is shared by getOrderForBusiness and updateOrderStatusForBusiness's
 // lookup — each describe block below sets its own mock, isolated by afterEach.
 
 const activeOffer = {
   id: 'offer-1',
+  title: 'Combo Burguer',
   status: 'ACTIVE',
   deliveryEnabled: true,
   startDate: new Date('2020-01-01'),
   endDate: new Date('2030-01-01'),
-  business: { id: 'biz-1', status: 'ACTIVE', owner: { blocked: false } },
+  business: {
+    id: 'biz-1',
+    name: 'Big Burger',
+    status: 'ACTIVE',
+    email: null,
+    owner: { blocked: false, email: 'dono@bigburger.com' },
+  },
 }
 
 const validInput = {
@@ -107,7 +119,7 @@ describe('createOrderForUser', () => {
 
   it('creates the order, uppercasing the state', async () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
-    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1' } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
 
     const result = await createOrderForUser('user-1', validInput)
 
@@ -127,7 +139,37 @@ describe('createOrderForUser', () => {
         zip: null,
         notes: null,
       },
+      include: { user: { select: { name: true } } },
     })
+  })
+
+  it('notifies the business by email using the business email over the owner email', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue({
+      ...activeOffer,
+      business: { ...activeOffer.business, email: 'contato@bigburger.com' },
+    } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+    const { sendNewOrderEmail } = await import('@/lib/email')
+
+    await createOrderForUser('user-1', validInput)
+
+    expect(sendNewOrderEmail).toHaveBeenCalledWith('contato@bigburger.com', {
+      offerTitle: 'Combo Burguer',
+      quantity: 2,
+      customerName: 'Maria',
+      phone: '5546999990000',
+      address: 'Rua das Flores, 10',
+    })
+  })
+
+  it('falls back to the owner email when the business has none', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+    const { sendNewOrderEmail } = await import('@/lib/email')
+
+    await createOrderForUser('user-1', validInput)
+
+    expect(sendNewOrderEmail).toHaveBeenCalledWith('dono@bigburger.com', expect.anything())
   })
 })
 
@@ -224,7 +266,13 @@ describe('updateOrderStatusForBusiness', () => {
   })
 
   it('allows a valid status transition', async () => {
-    vi.mocked(prisma.order.findFirst).mockResolvedValue({ id: 'order-1', status: 'PENDING' } as never)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue({
+      id: 'order-1',
+      status: 'PENDING',
+      user: { email: 'maria@example.com' },
+      offer: { title: 'Combo Burguer' },
+      business: { name: 'Big Burger' },
+    } as never)
     vi.mocked(prisma.order.update).mockResolvedValue({ id: 'order-1' } as never)
 
     const result = await updateOrderStatusForBusiness('biz-1', 'order-1', 'CONFIRMED')
@@ -233,8 +281,34 @@ describe('updateOrderStatusForBusiness', () => {
     expect(prisma.order.update).toHaveBeenCalledWith({ where: { id: 'order-1' }, data: { status: 'CONFIRMED' } })
   })
 
+  it('notifies the customer by email when the status changes', async () => {
+    vi.mocked(prisma.order.findFirst).mockResolvedValue({
+      id: 'order-1',
+      status: 'PENDING',
+      user: { email: 'maria@example.com' },
+      offer: { title: 'Combo Burguer' },
+      business: { name: 'Big Burger' },
+    } as never)
+    vi.mocked(prisma.order.update).mockResolvedValue({ id: 'order-1' } as never)
+    const { sendOrderStatusEmail } = await import('@/lib/email')
+
+    await updateOrderStatusForBusiness('biz-1', 'order-1', 'CONFIRMED')
+
+    expect(sendOrderStatusEmail).toHaveBeenCalledWith('maria@example.com', {
+      offerTitle: 'Combo Burguer',
+      businessName: 'Big Burger',
+      status: 'CONFIRMED',
+    })
+  })
+
   it('allows cancelling from any non-terminal status', async () => {
-    vi.mocked(prisma.order.findFirst).mockResolvedValue({ id: 'order-1', status: 'OUT_FOR_DELIVERY' } as never)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue({
+      id: 'order-1',
+      status: 'OUT_FOR_DELIVERY',
+      user: { email: 'maria@example.com' },
+      offer: { title: 'Combo Burguer' },
+      business: { name: 'Big Burger' },
+    } as never)
     vi.mocked(prisma.order.update).mockResolvedValue({ id: 'order-1' } as never)
 
     const result = await updateOrderStatusForBusiness('biz-1', 'order-1', 'CANCELLED')

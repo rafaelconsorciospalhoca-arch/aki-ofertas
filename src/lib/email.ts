@@ -16,3 +16,53 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
     throw new Error(error.message)
   }
 }
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pendente',
+  CONFIRMED: 'Confirmado',
+  PREPARING: 'Preparando',
+  OUT_FOR_DELIVERY: 'Saiu para entrega',
+  DELIVERED: 'Entregue',
+  CANCELLED: 'Cancelado',
+}
+
+export async function sendNewOrderEmail(
+  to: string,
+  data: { offerTitle: string; quantity: number; customerName: string; phone: string; address: string },
+): Promise<void> {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const { error } = await resend.emails.send({
+    from: 'Aki Ofertas <pedidos@akiofertas.com.br>',
+    to,
+    subject: `Novo pedido: ${data.offerTitle}`,
+    html: `
+      <p>Você recebeu um novo pedido com entrega!</p>
+      <p><strong>${data.quantity}x ${data.offerTitle}</strong></p>
+      <p>Cliente: ${data.customerName}<br/>Telefone: ${data.phone}<br/>Endereço: ${data.address}</p>
+      <p>Acesse o painel para confirmar e acompanhar o pedido.</p>
+    `,
+  })
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+export async function sendOrderStatusEmail(
+  to: string,
+  data: { offerTitle: string; businessName: string; status: string },
+): Promise<void> {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const label = ORDER_STATUS_LABEL[data.status] ?? data.status
+  const { error } = await resend.emails.send({
+    from: 'Aki Ofertas <pedidos@akiofertas.com.br>',
+    to,
+    subject: `Seu pedido em ${data.businessName}: ${label}`,
+    html: `
+      <p>O status do seu pedido de <strong>${data.offerTitle}</strong> em <strong>${data.businessName}</strong> mudou para:</p>
+      <h2>${label}</h2>
+    `,
+  })
+  if (error) {
+    throw new Error(error.message)
+  }
+}

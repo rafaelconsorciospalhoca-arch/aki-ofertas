@@ -1,3 +1,5 @@
+export type Rating = { average: number; count: number }
+
 export type OfferListItem = {
   id: string
   slug: string
@@ -10,6 +12,7 @@ export type OfferListItem = {
   businessSlug: string
   distanceKm: number | null
   distanceLabel: string | null
+  rating: Rating | null
 }
 
 export type Category = { id: string; name: string; icon: string; order: number }
@@ -82,6 +85,7 @@ export type BusinessSummary = {
   categoryName: string
   city: string
   state: string
+  rating: Rating | null
 }
 
 export type FavoritesResult = { offers: OfferListItem[]; businesses: BusinessSummary[] }

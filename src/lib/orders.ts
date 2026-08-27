@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import type { OrderStatus } from '@prisma/client'
+import { sendNewOrderEmail, sendOrderStatusEmail } from '@/lib/email'
 
 export type OrderRow = {
   id: string
@@ -120,7 +121,17 @@ const DELIVERY_NOT_AVAILABLE = 'Esta oferta não aceita entrega.'
 export async function createOrderForUser(userId: string, input: CreateOrderInput): Promise<CreateOrderResult> {
   const offer = await prisma.offer.findUnique({
     where: { id: input.offerId },
-    include: { business: { select: { id: true, status: true, owner: { select: { blocked: true } } } } },
+    include: {
+      business: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          email: true,
+          owner: { select: { blocked: true, email: true } },
+        },
+      },
+    },
   })
 
   if (!offer || offer.status !== 'ACTIVE') {
@@ -152,7 +163,19 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
       zip: input.zip || null,
       notes: input.notes || null,
     },
+    include: { user: { select: { name: true } } },
   })
+
+  const notifyEmail = offer.business.email || offer.business.owner.email
+  if (notifyEmail) {
+    sendNewOrderEmail(notifyEmail, {
+      offerTitle: offer.title,
+      quantity: input.quantity,
+      customerName: order.user.name,
+      phone: input.phone,
+      address: input.address,
+    }).catch((err) => console.error('Failed to send new order email', err))
+  }
 
   return { ok: true, orderId: order.id }
 }
@@ -173,7 +196,14 @@ export async function updateOrderStatusForBusiness(
   orderId: string,
   status: OrderStatus,
 ): Promise<UpdateOrderStatusResult> {
-  const order = await prisma.order.findFirst({ where: { id: orderId, businessId } })
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, businessId },
+    include: {
+      user: { select: { email: true } },
+      offer: { select: { title: true } },
+      business: { select: { name: true } },
+    },
+  })
   if (!order) {
     return { ok: false, error: 'Pedido não encontrado.' }
   }
@@ -182,5 +212,12 @@ export async function updateOrderStatusForBusiness(
   }
 
   await prisma.order.update({ where: { id: orderId }, data: { status } })
+
+  sendOrderStatusEmail(order.user.email, {
+    offerTitle: order.offer.title,
+    businessName: order.business.name,
+    status,
+  }).catch((err) => console.error('Failed to send order status email', err))
+
   return { ok: true }
 }

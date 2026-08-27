@@ -47,6 +47,28 @@ export async function getReviewsForBusinessSlug(slug: string): Promise<ReviewsSu
   }
 }
 
+export type Rating = { average: number; count: number }
+
+/** Batch average rating per business, for list views where a query per card would be N+1. */
+export async function getRatingsForBusinesses(businessIds: string[]): Promise<Map<string, Rating>> {
+  if (businessIds.length === 0) return new Map()
+
+  const groups = await prisma.review.groupBy({
+    by: ['businessId'],
+    where: { businessId: { in: businessIds } },
+    _avg: { rating: true },
+    _count: true,
+  })
+
+  const map = new Map<string, Rating>()
+  for (const group of groups) {
+    if (group._avg.rating !== null) {
+      map.set(group.businessId, { average: group._avg.rating, count: group._count })
+    }
+  }
+  return map
+}
+
 export type ReviewResult = { ok: true } | { ok: false; error: string }
 
 export async function upsertReviewForBusinessSlug(

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { distanceKm, formatDistance } from '@/lib/geo'
+import { getRatingsForBusinesses, type Rating } from '@/lib/reviews'
 import type { Coordinates, CityCookie } from '@/lib/location'
 
 export type OfferRow = {
@@ -35,12 +36,14 @@ export type OfferListItem = {
   businessSlug: string
   distanceKm: number | null
   distanceLabel: string | null
+  rating: Rating | null
 }
 
 export function toOfferListItem(
   offer: OfferRow,
   business: BusinessRow,
   location: Coordinates | null,
+  rating: Rating | null = null,
 ): OfferListItem {
   const km = location ? distanceKm(location, { lat: business.lat, lng: business.lng }) : null
 
@@ -56,6 +59,7 @@ export function toOfferListItem(
     businessSlug: business.slug,
     distanceKm: km,
     distanceLabel: km === null ? null : formatDistance(km),
+    rating,
   }
 }
 
@@ -79,7 +83,8 @@ export async function getFeaturedOffers(input: {
     include: { business: true },
   })
 
-  const items = rows.map((row) => toOfferListItem(row, row.business, input.location))
+  const ratings = await getRatingsForBusinesses(Array.from(new Set(rows.map((row) => row.business.id))))
+  const items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
 
   if (input.location) {
     items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
@@ -112,7 +117,8 @@ export async function getOffersList(input: {
     include: { business: true },
   })
 
-  let items = rows.map((row) => toOfferListItem(row, row.business, input.location))
+  const ratings = await getRatingsForBusinesses(Array.from(new Set(rows.map((row) => row.business.id))))
+  let items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
 
   if (input.location) {
     items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))

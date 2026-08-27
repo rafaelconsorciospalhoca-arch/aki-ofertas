@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { toOfferListItem, type OfferListItem } from '@/lib/offers'
+import { getRatingsForBusinesses, type Rating } from '@/lib/reviews'
 
 export type BusinessDetail = {
   id: string
@@ -30,6 +31,7 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessDetail | 
   if (row.status !== 'ACTIVE' || row.owner.blocked) return null
 
   const businessRow = { id: row.id, name: row.name, slug: row.slug, city: row.city, state: row.state, lat: row.lat, lng: row.lng }
+  const rating = (await getRatingsForBusinesses([row.id])).get(row.id) ?? null
 
   return {
     id: row.id,
@@ -43,7 +45,7 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessDetail | 
     state: row.state,
     phone: row.phone,
     whatsapp: row.whatsapp,
-    offers: row.offers.map((offer) => toOfferListItem(offer, businessRow, null)),
+    offers: row.offers.map((offer) => toOfferListItem(offer, businessRow, null, rating)),
   }
 }
 
@@ -55,6 +57,7 @@ export type BusinessSummary = {
   categoryName: string
   city: string
   state: string
+  rating: Rating | null
 }
 
 export async function searchBusinesses(query: string): Promise<BusinessSummary[]> {
@@ -69,6 +72,8 @@ export async function searchBusinesses(query: string): Promise<BusinessSummary[]
     take: 20,
   })
 
+  const ratings = await getRatingsForBusinesses(rows.map((row) => row.id))
+
   return rows.map((row) => ({
     id: row.id,
     slug: row.slug,
@@ -77,5 +82,6 @@ export async function searchBusinesses(query: string): Promise<BusinessSummary[]
     categoryName: row.category.name,
     city: row.city,
     state: row.state,
+    rating: ratings.get(row.id) ?? null,
   }))
 }

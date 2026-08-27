@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 vi.mock('@/lib/db', () => ({
   prisma: {
     business: { findUnique: vi.fn(), findMany: vi.fn() },
+    review: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -83,7 +84,23 @@ describe('searchBusinesses', () => {
     vi.clearAllMocks()
   })
 
+  it('attaches the business rating from getRatingsForBusinesses', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      {
+        id: 'biz-1', slug: 'big-burger', name: 'Big Burger', logoUrl: null,
+        city: 'Marmeleiro', state: 'PR', category: { name: 'Restaurantes e Lanchonetes' },
+      },
+    ] as never)
+    vi.mocked(prisma.review.groupBy).mockResolvedValue([
+      { businessId: 'biz-1', _avg: { rating: 4.2 }, _count: 5 },
+    ] as never)
+
+    const result = await searchBusinesses('burger')
+    expect(result[0].rating).toEqual({ average: 4.2, count: 5 })
+  })
+
   it('returns businesses matching the query, mapped to a summary shape', async () => {
+    vi.mocked(prisma.review.groupBy).mockResolvedValue([])
     vi.mocked(prisma.business.findMany).mockResolvedValue([
       {
         id: 'biz-1', slug: 'big-burger', name: 'Big Burger', logoUrl: null,
@@ -96,7 +113,7 @@ describe('searchBusinesses', () => {
     expect(result).toEqual([
       {
         id: 'biz-1', slug: 'big-burger', name: 'Big Burger', logoUrl: null,
-        categoryName: 'Restaurantes e Lanchonetes', city: 'Marmeleiro', state: 'PR',
+        categoryName: 'Restaurantes e Lanchonetes', city: 'Marmeleiro', state: 'PR', rating: null,
       },
     ])
     expect(prisma.business.findMany).toHaveBeenCalledWith(

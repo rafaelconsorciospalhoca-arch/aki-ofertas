@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 vi.mock('@/lib/db', () => ({
   prisma: {
     favorite: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    review: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }))
 

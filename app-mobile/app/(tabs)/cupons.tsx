@@ -1,5 +1,6 @@
 import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import QRCode from 'react-native-qrcode-svg'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { useCoupons } from '@/api/hooks/useCoupons'
@@ -50,6 +51,11 @@ export default function CuponsScreen() {
               <Text style={[styles.status, { color: STATUS_COLOR[item.status] }]}>{STATUS_LABEL[item.status]}</Text>
             </View>
           </View>
+          {item.status === 'VALID' && (
+            <View style={styles.qrWrapper}>
+              <QRCode value={item.code} size={100} />
+            </View>
+          )}
           <Text style={styles.code}>{item.code}</Text>
           <Text style={styles.expiry}>Válido até {formatDate(item.expiresAt)}</Text>
         </Pressable>
@@ -82,6 +88,7 @@ const styles = StyleSheet.create({
   businessName: { fontSize: 12, color: colors.neutral500 },
   statusPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   status: { fontSize: 11, fontWeight: '700' },
+  qrWrapper: { alignItems: 'center', marginTop: 12 },
   code: { fontSize: 20, fontWeight: '800', letterSpacing: 3, textAlign: 'center', marginTop: 12, color: colors.neutral900 },
   expiry: { fontSize: 11, color: colors.neutral500, textAlign: 'center', marginTop: 4 },
 })
