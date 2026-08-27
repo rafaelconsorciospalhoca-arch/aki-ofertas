@@ -16,6 +16,8 @@ const offerSchema = z.object({
   quantityAvailable: z.string().optional(),
   startDate: z.string().min(1, 'Informe a data inicial.'),
   endDate: z.string().min(1, 'Informe a data final.'),
+  deliveryEnabled: z.boolean().optional(),
+  customCouponCode: z.string().optional(),
 })
 
 type OfferActionInput = OfferFormInput & z.infer<typeof offerSchema>
@@ -69,6 +71,8 @@ export async function createOffer(input: OfferActionInput): Promise<OfferResult>
       quantityAvailable: computed.quantityAvailable,
       startDate: computed.startDate,
       endDate: computed.endDate,
+      deliveryEnabled: parsed.data.deliveryEnabled ?? false,
+      customCouponCode: parsed.data.customCouponCode || null,
       status: 'ACTIVE',
       slug,
     },
@@ -111,6 +115,8 @@ export async function updateOffer(offerId: string, input: OfferActionInput): Pro
       quantityAvailable: computed.quantityAvailable,
       startDate: computed.startDate,
       endDate: computed.endDate,
+      deliveryEnabled: parsed.data.deliveryEnabled ?? false,
+      customCouponCode: parsed.data.customCouponCode || null,
     },
   })
 

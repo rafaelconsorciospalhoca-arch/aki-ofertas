@@ -19,7 +19,7 @@ function couponRow(overrides: Partial<Record<string, unknown>> = {}) {
     usedAt: null,
     expiresAt: new Date('2026-07-01'),
     offerId: 'offer-1',
-    offer: { title: 'Combo Burguer', slug: 'combo-burguer' },
+    offer: { title: 'Combo Burguer', slug: 'combo-burguer', customCouponCode: null },
     business: { name: 'Big Burger', slug: 'big-burger' },
     ...overrides,
   }
@@ -81,6 +81,15 @@ describe('getCouponsForUser', () => {
 
     const result = await getCouponsForUser('user-1')
     expect(result[0].status).toBe('EXPIRED')
+  })
+
+  it('shows the offer\'s custom coupon code instead of the internal one when set', async () => {
+    vi.mocked(prisma.coupon.findMany).mockResolvedValue([
+      couponRow({ offer: { title: 'Combo Burguer', slug: 'combo-burguer', customCouponCode: 'LOJA10' } }),
+    ] as never)
+
+    const result = await getCouponsForUser('user-1')
+    expect(result[0].code).toBe('LOJA10')
   })
 
   it('orders by generatedAt descending via the query', async () => {

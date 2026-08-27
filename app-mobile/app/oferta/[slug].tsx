@@ -1,6 +1,6 @@
 import { View, Text, Image, Pressable, ScrollView, ActivityIndicator, StyleSheet, Share, Linking } from 'react-native'
 import { useLocalSearchParams, Stack, router } from 'expo-router'
-import { ArrowLeft, Share2, Navigation, Ticket } from 'lucide-react-native'
+import { ArrowLeft, Share2, Navigation, Ticket, Bike } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import { useOfferDetail } from '@/api/hooks/useOfferDetail'
@@ -70,6 +70,12 @@ export default function OfertaScreen() {
         <Text style={styles.validUntil}>Válido até {formatDate(offer.endDate)}</Text>
         <View style={styles.buttonWrapper}>
           <GenerateCouponButton offerId={offer.id} icon={<Ticket size={18} color={colors.white} />} />
+          {offer.deliveryEnabled && (
+            <Pressable style={styles.deliveryButton} onPress={() => router.push(`/pedido/${offer.slug}`)}>
+              <Bike size={18} color={colors.green} />
+              <Text style={styles.deliveryButtonText}>Pedir com entrega</Text>
+            </Pressable>
+          )}
           <View style={styles.secondaryRow}>
             <Pressable style={styles.secondaryButton} onPress={handleDirections}>
               <Navigation size={16} color={colors.neutral900} />
@@ -133,6 +139,17 @@ const styles = StyleSheet.create({
   discountPrice: { fontSize: 24, fontWeight: '800', color: colors.green },
   validUntil: { fontSize: 12, color: colors.neutral500 },
   buttonWrapper: { marginTop: 16, gap: 10 },
+  deliveryButton: {
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryButtonText: { color: colors.green, fontWeight: '700', fontSize: 14 },
   secondaryRow: { flexDirection: 'row', gap: 10 },
   secondaryButton: {
     flex: 1,

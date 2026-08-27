@@ -8,6 +8,7 @@ const NAV_ITEMS: Record<'comerciante' | 'admin', { href: string; label: string }
     { href: '/comerciante', label: 'Dashboard' },
     { href: '/comerciante/ofertas', label: 'Ofertas' },
     { href: '/comerciante/cardapio', label: 'Cardápio' },
+    { href: '/comerciante/pedidos', label: 'Pedidos' },
     { href: '/comerciante/cupons/validar', label: 'Validar cupom' },
     { href: '/comerciante/empresa', label: 'Empresa' },
     { href: '/comerciante/plano', label: 'Plano' },

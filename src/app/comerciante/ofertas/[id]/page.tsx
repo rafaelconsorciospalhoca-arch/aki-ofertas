@@ -39,6 +39,8 @@ export default async function EditarOfertaPage({ params }: { params: { id: strin
           quantityAvailable: offer.quantityAvailable !== null ? String(offer.quantityAvailable) : '',
           startDate: toDateInputValue(offer.startDate),
           endDate: toDateInputValue(offer.endDate),
+          deliveryEnabled: offer.deliveryEnabled,
+          customCouponCode: offer.customCouponCode ?? '',
         }}
       />
     </div>

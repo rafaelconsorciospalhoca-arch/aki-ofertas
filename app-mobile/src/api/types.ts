@@ -28,6 +28,7 @@ export type OfferDetail = {
   quantityAvailable: number | null
   startDate: string
   endDate: string
+  deliveryEnabled: boolean
   business: {
     name: string
     slug: string
@@ -101,4 +102,42 @@ export type MenuItemRow = {
   description: string | null
   price: number | null
   imageUrl: string | null
+}
+
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
+
+export type OrderRow = {
+  id: string
+  quantity: number
+  phone: string
+  address: string
+  number: string | null
+  neighborhood: string | null
+  city: string
+  state: string
+  zip: string | null
+  notes: string | null
+  status: OrderStatus
+  createdAt: string
+  offerId: string
+  offerTitle: string
+  offerSlug: string
+  discountPrice: number
+  businessId: string
+  businessName: string
+  businessSlug: string
+  customerName: string
+}
+
+export type CreateOrderInput = {
+  offerId: string
+  quantity: number
+  phone: string
+  address: string
+  number?: string
+  neighborhood?: string
+  city: string
+  state: string
+  zip?: string
+  notes?: string
 }

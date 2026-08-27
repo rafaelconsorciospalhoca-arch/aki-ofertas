@@ -14,6 +14,8 @@ type Values = {
   quantityAvailable: string
   startDate: string
   endDate: string
+  deliveryEnabled: boolean
+  customCouponCode: string
 }
 
 export function OfferForm({
@@ -37,6 +39,8 @@ export function OfferForm({
       quantityAvailable: '',
       startDate: '',
       endDate: '',
+      deliveryEnabled: false,
+      customCouponCode: '',
     },
   )
   const [error, setError] = useState<string | null>(null)
@@ -167,6 +171,29 @@ export function OfferForm({
           />
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+        <input
+          type="checkbox"
+          checked={values.deliveryEnabled}
+          onChange={(e) => update('deliveryEnabled', e.target.checked)}
+        />
+        Aceita pedido com entrega (delivery)
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        Código de cupom fixo (opcional)
+        <input
+          value={values.customCouponCode}
+          onChange={(e) => update('customCouponCode', e.target.value)}
+          className={inputClass}
+          placeholder="Ex: LOJA10"
+        />
+        <span className="text-xs font-normal text-neutral-400">
+          Se você já valida cupons em outro sistema, defina aqui o código que ele espera — todo cliente que
+          resgatar esta oferta vai receber esse mesmo código, em vez de um gerado automaticamente.
+        </span>
+      </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

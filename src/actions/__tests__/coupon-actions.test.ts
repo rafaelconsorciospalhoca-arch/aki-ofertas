@@ -46,6 +46,7 @@ const activeOffer = {
   startDate: new Date(Date.now() - DAY),
   endDate: new Date(Date.now() + 30 * DAY),
   quantityAvailable: null,
+  customCouponCode: null,
   business: { status: 'ACTIVE', owner: { blocked: false } },
 }
 
@@ -93,7 +94,7 @@ describe('generateCoupon', () => {
     const existing = { id: 'coupon-1', code: 'AK1234', expiresAt: new Date('2026-07-01') }
     mockTransaction({
       coupon: { findFirst: vi.fn().mockResolvedValue(existing), count: vi.fn(), create: vi.fn() },
-      offer: { findUnique: vi.fn() },
+      offer: { findUnique: vi.fn().mockResolvedValue(activeOffer) },
     })
 
     const result = await generateCoupon('offer-1')
@@ -222,16 +223,16 @@ describe('generateCoupon', () => {
 
   it('returns the winning coupon when a concurrent request already created one', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'user-1' } } as never)
-    const winner = { id: 'coupon-9', code: 'AKWIN1', expiresAt: activeOffer.endDate }
+    const winner = { id: 'coupon-9', code: 'AKWIN1', expiresAt: activeOffer.endDate, offer: { customCouponCode: null } }
     vi.mocked(prisma.$transaction).mockRejectedValue(p2002(['userId', 'offerId']))
     vi.mocked(prisma.coupon.findFirst).mockResolvedValue(winner as never)
 
     const result = await generateCoupon('offer-1')
 
-    expect(result).toEqual({ ok: true, coupon: winner })
-    expect(prisma.coupon.findFirst).toHaveBeenCalledWith({
-      where: { userId: 'user-1', offerId: 'offer-1' },
-    })
+    expect(result).toEqual({ ok: true, coupon: { id: 'coupon-9', code: 'AKWIN1', expiresAt: activeOffer.endDate } })
+    expect(prisma.coupon.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'user-1', offerId: 'offer-1' } }),
+    )
     // The recovery read happens outside the aborted transaction.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1)
   })

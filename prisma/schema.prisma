@@ -33,6 +33,15 @@ enum CouponStatus {
   CANCELLED
 }
 
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -49,6 +58,7 @@ model User {
   coupons        Coupon[]
   favorites      Favorite[]
   reviews        Review[]
+  orders         Order[]
   mobileSessions MobileSession[]
 
   @@map("users")
@@ -120,6 +130,7 @@ model Business {
   serviceCities   City[]           @relation("BusinessServiceCities")
   reviews         Review[]
   menuItems       MenuItem[]
+  orders          Order[]
 
   @@map("businesses")
 }
@@ -182,14 +193,44 @@ model Offer {
   startDate         DateTime
   endDate           DateTime
   isFlash           Boolean     @default(false)
+  deliveryEnabled   Boolean     @default(false)
+  // Set when the merchant already validates coupons in their own external
+  // system: every redemption of this offer shows this same code instead of
+  // a freshly generated one, so it matches what their system expects.
+  customCouponCode  String?
   status            OfferStatus @default(ACTIVE)
   createdAt         DateTime    @default(now())
   slug              String      @unique
 
   coupons   Coupon[]
   favorites Favorite[]
+  orders    Order[]
 
   @@map("offers")
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  offerId      String
+  offer        Offer       @relation(fields: [offerId], references: [id])
+  businessId   String
+  business     Business    @relation(fields: [businessId], references: [id])
+  quantity     Int         @default(1)
+  phone        String
+  address      String
+  number       String?
+  neighborhood String?
+  city         String
+  state        String
+  zip          String?
+  notes        String?
+  status       OrderStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("orders")
 }
 
 model Coupon {

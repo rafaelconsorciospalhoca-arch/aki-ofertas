@@ -44,6 +44,9 @@ export default function PerfilScreen() {
           <Text style={styles.value}>{profile.data.city}</Text>
         </View>
       )}
+      <Pressable style={styles.linkRow} onPress={() => router.push('/pedidos')}>
+        <Text style={styles.linkText}>Meus pedidos</Text>
+      </Pressable>
       <Pressable style={styles.logoutButton} onPress={() => logout()}>
         <Text style={styles.logoutText}>Sair</Text>
       </Pressable>
@@ -61,6 +64,8 @@ const styles = StyleSheet.create({
   field: { borderBottomWidth: 1, borderBottomColor: colors.neutral200, paddingBottom: 12 },
   label: { fontSize: 12, color: colors.neutral500 },
   value: { fontSize: 15, color: colors.neutral900, marginTop: 2 },
+  linkRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.neutral200 },
+  linkText: { fontSize: 15, color: colors.neutral900, fontWeight: '600' },
   logoutButton: { marginTop: 24, alignItems: 'center' },
   logoutText: { color: colors.red, fontWeight: '700' },
 })

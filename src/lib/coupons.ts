@@ -24,7 +24,7 @@ type CouponWithRelations = {
   usedAt: Date | null
   expiresAt: Date
   offerId: string
-  offer: { title: string; slug: string }
+  offer: { title: string; slug: string; customCouponCode: string | null }
   business: { name: string; slug: string }
 }
 
@@ -35,7 +35,7 @@ function toCouponRow(row: CouponWithRelations): CouponRow {
 
   return {
     id: row.id,
-    code: row.code,
+    code: row.offer.customCouponCode ?? row.code,
     status,
     generatedAt: row.generatedAt,
     usedAt: row.usedAt,
@@ -49,7 +49,7 @@ function toCouponRow(row: CouponWithRelations): CouponRow {
 }
 
 const couponInclude = {
-  offer: { select: { title: true, slug: true } },
+  offer: { select: { title: true, slug: true, customCouponCode: true } },
   business: { select: { name: true, slug: true } },
 } as const
 
@@ -103,8 +103,8 @@ function isUserOfferConflict(err: unknown): boolean {
   return target.includes('userid') && target.includes('offerid')
 }
 
-function toSummary(coupon: { id: string; code: string; expiresAt: Date }): CouponSummary {
-  return { id: coupon.id, code: coupon.code, expiresAt: coupon.expiresAt }
+function toSummary(coupon: { id: string; code: string; expiresAt: Date }, customCode: string | null): CouponSummary {
+  return { id: coupon.id, code: customCode ?? coupon.code, expiresAt: coupon.expiresAt }
 }
 
 /**
@@ -130,11 +130,6 @@ export async function generateCouponForUser(userId: string, offerId: string): Pr
       // stock count would be invalidated by a competing insert (surfaced as P2034).
       const result = await prisma.$transaction(
         async (tx) => {
-          const existing = await tx.coupon.findFirst({ where: { userId, offerId } })
-          if (existing) {
-            return { ok: true as const, coupon: existing }
-          }
-
           const offer = await tx.offer.findUnique({
             where: { id: offerId },
             include: {
@@ -155,6 +150,11 @@ export async function generateCouponForUser(userId: string, offerId: string): Pr
             return { ok: false as const, error: OFFER_NOT_AVAILABLE }
           }
 
+          const existing = await tx.coupon.findFirst({ where: { userId, offerId } })
+          if (existing) {
+            return { ok: true as const, coupon: existing, customCode: offer.customCouponCode }
+          }
+
           if (offer.quantityAvailable !== null) {
             const count = await tx.coupon.count({ where: { offerId } })
             if (count >= offer.quantityAvailable) {
@@ -172,7 +172,7 @@ export async function generateCouponForUser(userId: string, offerId: string): Pr
               expiresAt: offer.endDate,
             },
           })
-          return { ok: true as const, coupon }
+          return { ok: true as const, coupon, customCode: offer.customCouponCode }
         },
         { isolationLevel: 'Serializable' },
       )
@@ -180,7 +180,7 @@ export async function generateCouponForUser(userId: string, offerId: string): Pr
       if (!result.ok) {
         return result
       }
-      return { ok: true, coupon: toSummary(result.coupon) }
+      return { ok: true, coupon: toSummary(result.coupon, result.customCode) }
     } catch (err) {
       const code = errorCode(err)
 
@@ -188,9 +188,12 @@ export async function generateCouponForUser(userId: string, offerId: string): Pr
       // transaction is aborted, so re-read outside of it and return that coupon:
       // one coupon per person per offer makes this idempotent, not an error.
       if (code === 'P2002' && isUserOfferConflict(err)) {
-        const winner = await prisma.coupon.findFirst({ where: { userId, offerId } })
+        const winner = await prisma.coupon.findFirst({
+          where: { userId, offerId },
+          include: { offer: { select: { customCouponCode: true } } },
+        })
         if (winner) {
-          return { ok: true, coupon: toSummary(winner) }
+          return { ok: true, coupon: toSummary(winner, winner.offer.customCouponCode) }
         }
         continue
       }

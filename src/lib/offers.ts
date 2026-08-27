@@ -137,6 +137,7 @@ export type OfferDetail = {
   quantityAvailable: number | null
   startDate: Date
   endDate: Date
+  deliveryEnabled: boolean
   business: {
     name: string
     slug: string
@@ -170,6 +171,7 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
     quantityAvailable: row.quantityAvailable,
     startDate: row.startDate,
     endDate: row.endDate,
+    deliveryEnabled: row.deliveryEnabled,
     business: {
       name: row.business.name,
       slug: row.business.slug,
