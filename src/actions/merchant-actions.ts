@@ -40,7 +40,13 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
 
   const state = parsed.data.state.toUpperCase()
 
-  const coordinates = await geocodeAddress(`${parsed.data.address}, ${parsed.data.city} - ${state}, Brasil`)
+  // Small towns are frequently missing street-level data in OpenStreetMap, so an
+  // exact address often fails to geocode even though it's real. Falling back to
+  // the city center keeps signup working (still enough precision for "near you"
+  // sorting) instead of blocking a legitimate business over a map data gap.
+  const coordinates =
+    (await geocodeAddress(`${parsed.data.address}, ${parsed.data.city} - ${state}, Brasil`)) ??
+    (await geocodeAddress(`${parsed.data.city} - ${state}, Brasil`))
   if (!coordinates) {
     return { ok: false, error: 'Não foi possível localizar esse endereço. Confira e tente novamente.' }
   }

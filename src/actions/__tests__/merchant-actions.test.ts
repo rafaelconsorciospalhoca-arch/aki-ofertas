@@ -77,6 +77,31 @@ describe('signUpMerchant', () => {
     expect(result).toEqual({ ok: false, error: 'Não foi possível localizar esse endereço. Confira e tente novamente.' })
   })
 
+  it('falls back to city-level coordinates when the exact address cannot be geocoded', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-free', name: 'Grátis' } as never)
+    vi.mocked(prisma.city.findFirst).mockResolvedValue(null)
+    vi.mocked(geocodeAddress).mockResolvedValueOnce(null).mockResolvedValueOnce({ lat: -26.14, lng: -53.02 })
+
+    const userCreate = vi.fn().mockResolvedValue({ id: 'user-1' })
+    const businessCreate = vi.fn().mockResolvedValue({ id: 'biz-1' })
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback: unknown) => {
+      return (callback as (tx: unknown) => unknown)({
+        user: { create: userCreate },
+        business: { create: businessCreate },
+      })
+    })
+
+    const result = await signUpMerchant(validInput)
+
+    expect(result).toEqual({ ok: true, businessId: 'biz-1' })
+    expect(geocodeAddress).toHaveBeenCalledTimes(2)
+    expect(geocodeAddress).toHaveBeenNthCalledWith(2, 'Marmeleiro - PR, Brasil')
+    const businessData = businessCreate.mock.calls[0][0].data
+    expect(businessData.lat).toBe(-26.14)
+    expect(businessData.lng).toBe(-53.02)
+  })
+
   it('creates the owner and business, uppercasing the state and hashing the password', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-free', name: 'Grátis' } as never)
