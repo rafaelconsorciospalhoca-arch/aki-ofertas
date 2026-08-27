@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals'
 import { firstWord } from '@/components/CategoryGrid'
 
 describe('firstWord', () => {
