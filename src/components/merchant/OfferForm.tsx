@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createOffer, updateOffer } from '@/actions/offer-actions'
+import { ImageUploadField } from './ImageUploadField'
 
 type Values = {
   title: string
@@ -90,15 +91,12 @@ export function OfferForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        URL da imagem
-        <input
-          value={values.imageUrl}
-          onChange={(e) => update('imageUrl', e.target.value)}
-          className={inputClass}
-          placeholder="https://..."
-        />
-      </label>
+      <ImageUploadField
+        label="Imagem da oferta"
+        hint="Recomendado: 800×600px (paisagem), até 5MB"
+        value={values.imageUrl}
+        onChange={(url) => update('imageUrl', url)}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">

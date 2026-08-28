@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createMenuItem, updateMenuItem, deleteMenuItem } from '@/actions/menu-actions'
 import { centsToReais } from '@/lib/money'
+import { ImageUploadField } from './ImageUploadField'
 
 type MenuItem = { id: string; name: string; description: string | null; price: number | null; imageUrl: string | null }
 type Values = { name: string; description: string; price: string; imageUrl: string }
@@ -114,15 +115,12 @@ export function MenuManager({ items }: { items: MenuItem[] }) {
               className={inputClass}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-            URL da imagem
-            <input
-              value={values.imageUrl}
-              onChange={(e) => update('imageUrl', e.target.value)}
-              className={inputClass}
-              placeholder="https://..."
-            />
-          </label>
+          <ImageUploadField
+            label="Imagem do item"
+            hint="Recomendado: 600×600px (quadrada), até 3MB"
+            value={values.imageUrl}
+            onChange={(url) => update('imageUrl', url)}
+          />
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

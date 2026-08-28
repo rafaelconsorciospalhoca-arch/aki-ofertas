@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateBusiness } from '@/actions/merchant-actions'
 import { lookupCep } from '@/lib/cep'
+import { ImageUploadField } from './ImageUploadField'
 
 type Values = {
   name: string
@@ -242,15 +243,19 @@ export function BusinessProfileForm({
         </div>
       </div>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        URL do logo
-        <input value={values.logoUrl} onChange={(e) => update('logoUrl', e.target.value)} className={inputClass} placeholder="https://..." />
-      </label>
+      <ImageUploadField
+        label="Logo da loja"
+        hint="Recomendado: 400×400px (quadrada), até 2MB"
+        value={values.logoUrl}
+        onChange={(url) => update('logoUrl', url)}
+      />
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        URL da capa
-        <input value={values.coverUrl} onChange={(e) => update('coverUrl', e.target.value)} className={inputClass} placeholder="https://..." />
-      </label>
+      <ImageUploadField
+        label="Capa da loja"
+        hint="Recomendado: 1200×400px (larga), até 5MB"
+        value={values.coverUrl}
+        onChange={(url) => update('coverUrl', url)}
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-emerald-600">Dados salvos.</p>}
