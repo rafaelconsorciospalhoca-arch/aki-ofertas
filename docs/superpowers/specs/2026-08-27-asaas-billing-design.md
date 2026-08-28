@@ -239,7 +239,9 @@ O cadastro (`src/actions/merchant-actions.ts`) continua atribuindo o plano `Grá
 
 ## 11. Bloqueio do painel do comerciante
 
-`src/app/comerciante/layout.tsx` (verificar se já existe um layout aqui — se não, criar): antes de renderizar `children`, busca a `Business` da sessão. Se `status !== 'ACTIVE'`, renderiza uma tela de bloqueio (mensagem + botão pra `/comerciante/plano`) em vez do conteúdo normal — mesmo padrão de "gate" que a spec da landing já usou pro `ConsumerShell` (mas aqui é um bloqueio de verdade em nível de layout server-side, não CSS). A tela `/comerciante/plano` em si nunca é bloqueada, senão o comerciante suspenso não consegue nem assinar.
+`src/app/comerciante/layout.tsx` já existe (hoje só monta `DashboardShell`); vira um server component async que busca a `Business` da sessão via `getBusinessForOwner` (já existe em `src/lib/merchant.ts`). Bloqueia só quando `status === 'SUSPENDED'` — **não** quando `PENDING` (aguardando aprovação, sem trial ainda) ou `REJECTED` (fluxos que o dashboard já trata com um banner inline, sem tocar). Sem sessão, ou sessão sem `Business` ainda (ex: `/comerciante/cadastro`, acessado antes de existir conta), a página renderiza normal — o bloqueio só entra quando existe uma empresa de verdade e ela está suspensa. Quando bloqueado: tela com mensagem (texto muda conforme `suspendedReason` — `TRIAL_EXPIRED`/`PAYMENT_OVERDUE` mostram "assine um plano pra continuar" com botão pra `/comerciante/plano`; `ADMIN` mostra uma mensagem genérica de conta suspensa, sem esse botão) em vez de `children`.
+
+`layout.tsx` (server) não tem acesso direto ao pathname — pra deixar `/comerciante/plano` sempre acessível mesmo suspenso, a checagem de rota fica num componente cliente `MerchantAccessGate` (`src/components/merchant/MerchantAccessGate.tsx`), que recebe `suspended`/`suspendedReason` como prop já calculados no servidor e usa `usePathname()` (mesmo padrão já usado em `ConsumerShell`) pra pular o bloqueio quando a rota atual for `/comerciante/plano`.
 
 ## Testes
 
