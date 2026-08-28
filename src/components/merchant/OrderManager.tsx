@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { updateOrderStatus } from '@/actions/order-actions'
@@ -57,9 +57,50 @@ function formatDate(date: Date): string {
   return new Date(date).toLocaleString('pt-BR')
 }
 
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+    const oscillator = ctx.createOscillator()
+    const gain = ctx.createGain()
+    oscillator.connect(gain)
+    gain.connect(ctx.destination)
+    oscillator.frequency.value = 880
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.3)
+  } catch {
+    // Autoplay/permissão de áudio pode falhar antes de qualquer interação do
+    // usuário na página — o banner visual já é aviso suficiente nesse caso.
+  }
+}
+
 export function OrderManager({ orders }: { orders: Order[] & { id: string }[] }) {
   const router = useRouter()
   const [pendingId, setPendingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 20_000)
+    return () => clearInterval(interval)
+  }, [router])
+
+  const seenIds = useRef<Set<string> | null>(null)
+  const [newOrderBanner, setNewOrderBanner] = useState(false)
+
+  useEffect(() => {
+    const currentIds = new Set(orders.map((o) => o.id))
+    if (seenIds.current === null) {
+      seenIds.current = currentIds
+      return
+    }
+    const hasNewOrder = orders.some((o) => !seenIds.current!.has(o.id))
+    if (hasNewOrder) {
+      setNewOrderBanner(true)
+      playNotificationSound()
+      setTimeout(() => setNewOrderBanner(false), 6000)
+    }
+    seenIds.current = currentIds
+  }, [orders])
 
   async function handleStatusChange(orderId: string, status: string) {
     setPendingId(orderId)
@@ -77,6 +118,11 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
 
   return (
     <div className="flex flex-col gap-3">
+      {newOrderBanner && (
+        <div className="rounded-lg bg-brand-green px-4 py-3 text-sm font-bold text-white">
+          🔔 Novo pedido recebido!
+        </div>
+      )}
       {orders.map((order) => (
         <div key={order.id} className="rounded-xl border border-neutral-200 bg-white p-4">
           <div className="flex items-start justify-between gap-3">
