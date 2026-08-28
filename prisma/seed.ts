@@ -29,8 +29,9 @@ async function main() {
 
   const planData = [
     { name: 'Grátis', priceCents: 0, maxOffersPerMonth: 3, hasFlashOffers: false, hasFullMetrics: false },
-    { name: 'Pro', priceCents: 4990, maxOffersPerMonth: 30, hasFlashOffers: true, hasFullMetrics: true },
-    { name: 'Destaque', priceCents: 9990, maxOffersPerMonth: 999, hasFlashOffers: true, hasFullMetrics: true },
+    { name: 'Básico', priceCents: 4990, maxOffersPerMonth: 5, hasFlashOffers: false, hasFullMetrics: false },
+    { name: 'Destaque', priceCents: 9990, maxOffersPerMonth: 15, hasFlashOffers: true, hasFullMetrics: false },
+    { name: 'Turbo', priceCents: 19990, maxOffersPerMonth: 30, hasFlashOffers: true, hasFullMetrics: true },
   ]
   const plans: Record<string, string> = {}
   for (const p of planData) {
@@ -77,7 +78,7 @@ async function main() {
       lng: -53.0489,
       description: 'Hambúrgueres artesanais no centro de Marmeleiro.',
       status: 'ACTIVE',
-      planId: plans['Pro'],
+      planId: plans['Básico'],
       slug: 'big-burger',
     },
   })

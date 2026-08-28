@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser } from '@/actions/admin-actions'
+import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -9,6 +9,7 @@ vi.mock('@/lib/db', () => ({
     category: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     city: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
+    plan: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }))
 
@@ -372,6 +373,69 @@ describe('updateUser', () => {
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-2' },
       data: { name: 'Rafael Souza', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' },
+    })
+  })
+})
+
+const validPlanInput = { name: 'Turbo', priceReais: '199.90', maxOffersPerMonth: '30', hasFlashOffers: true, hasFullMetrics: true }
+
+describe('createPlan', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('rejects when not an admin', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await createPlan(validPlanInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects a duplicate plan name', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'p1' } as never)
+
+    const result = await createPlan(validPlanInput)
+    expect(result).toEqual({ ok: false, error: 'Este plano já existe.' })
+  })
+
+  it('creates the plan, converting reais to cents', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.plan.create).mockResolvedValue({ id: 'p1' } as never)
+
+    const result = await createPlan(validPlanInput)
+
+    expect(result).toEqual({ ok: true, planId: 'p1' })
+    expect(prisma.plan.create).toHaveBeenCalledWith({
+      data: { name: 'Turbo', priceCents: 19990, maxOffersPerMonth: 30, hasFlashOffers: true, hasFullMetrics: true },
+    })
+  })
+})
+
+describe('updatePlan', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('rejects when the plan does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(null)
+
+    const result = await updatePlan('p1', validPlanInput)
+    expect(result).toEqual({ ok: false, error: 'Plano não encontrado.' })
+  })
+
+  it('updates the plan, converting reais to cents', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'p1' } as never)
+    vi.mocked(prisma.plan.update).mockResolvedValue({ id: 'p1' } as never)
+
+    const result = await updatePlan('p1', validPlanInput)
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.plan.update).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { name: 'Turbo', priceCents: 19990, maxOffersPerMonth: 30, hasFlashOffers: true, hasFullMetrics: true },
     })
   })
 })

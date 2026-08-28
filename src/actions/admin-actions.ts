@@ -242,3 +242,93 @@ export async function updateUser(
 
   return { ok: true }
 }
+
+const planSchema = z.object({
+  name: z.string().min(2, 'Informe o nome do plano.'),
+  priceReais: z.string().min(1, 'Informe o preço.'),
+  maxOffersPerMonth: z.string().min(1, 'Informe o limite de ofertas.'),
+  hasFlashOffers: z.boolean(),
+  hasFullMetrics: z.boolean(),
+})
+
+type PlanInput = z.infer<typeof planSchema>
+type PlanResult = { ok: true; planId: string } | { ok: false; error: string }
+
+function parsePlanData(input: PlanInput): { priceCents: number; maxOffersPerMonth: number } | { error: string } {
+  const priceCents = Math.round(Number(input.priceReais) * 100)
+  if (!Number.isFinite(priceCents) || priceCents < 0) {
+    return { error: 'Preço inválido.' }
+  }
+  const maxOffersPerMonth = Number(input.maxOffersPerMonth)
+  if (!Number.isInteger(maxOffersPerMonth) || maxOffersPerMonth < 0) {
+    return { error: 'Limite de ofertas inválido.' }
+  }
+  return { priceCents, maxOffersPerMonth }
+}
+
+export async function createPlan(input: PlanInput): Promise<PlanResult> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = planSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const data = parsePlanData(parsed.data)
+  if ('error' in data) {
+    return { ok: false, error: data.error }
+  }
+
+  const existing = await prisma.plan.findUnique({ where: { name: parsed.data.name } })
+  if (existing) {
+    return { ok: false, error: 'Este plano já existe.' }
+  }
+
+  const plan = await prisma.plan.create({
+    data: {
+      name: parsed.data.name,
+      priceCents: data.priceCents,
+      maxOffersPerMonth: data.maxOffersPerMonth,
+      hasFlashOffers: parsed.data.hasFlashOffers,
+      hasFullMetrics: parsed.data.hasFullMetrics,
+    },
+  })
+
+  return { ok: true, planId: plan.id }
+}
+
+export async function updatePlan(id: string, input: PlanInput): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = planSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  const data = parsePlanData(parsed.data)
+  if ('error' in data) {
+    return { ok: false, error: data.error }
+  }
+
+  const existing = await prisma.plan.findUnique({ where: { id } })
+  if (!existing) {
+    return { ok: false, error: 'Plano não encontrado.' }
+  }
+
+  await prisma.plan.update({
+    where: { id },
+    data: {
+      name: parsed.data.name,
+      priceCents: data.priceCents,
+      maxOffersPerMonth: data.maxOffersPerMonth,
+      hasFlashOffers: parsed.data.hasFlashOffers,
+      hasFullMetrics: parsed.data.hasFullMetrics,
+    },
+  })
+
+  return { ok: true }
+}

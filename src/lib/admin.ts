@@ -69,3 +69,11 @@ export async function getUsersForAdmin(query?: string) {
 export async function getUserById(id: string) {
   return prisma.user.findUnique({ where: { id }, select: userSelect })
 }
+
+export async function getAllPlans() {
+  return prisma.plan.findMany({ orderBy: { priceCents: 'asc' } })
+}
+
+export async function getPlanById(id: string) {
+  return prisma.plan.findUnique({ where: { id } })
+}
