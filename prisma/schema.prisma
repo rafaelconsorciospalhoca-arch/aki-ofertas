@@ -118,6 +118,9 @@ model Business {
   status       BusinessStatus @default(PENDING)
   planId       String?
   plan         Plan?          @relation(fields: [planId], references: [id])
+  trialEndsAt  DateTime?
+  asaasCustomerId String?
+  suspendedReason String?
   createdAt    DateTime       @default(now())
   slug         String         @unique
 
@@ -288,6 +291,7 @@ model Subscription {
   status     String    @default("ACTIVE")
   startedAt  DateTime  @default(now())
   renewsAt   DateTime?
+  asaasSubscriptionId String?
 
   @@map("subscriptions")
 }
@@ -327,4 +331,15 @@ model MobileSession {
 
   @@index([userId])
   @@map("mobile_sessions")
+}
+
+model AppSettings {
+  id                    String   @id @default(cuid())
+  asaasMode             String   @default("SANDBOX")
+  asaasSandboxApiKey    String?
+  asaasProductionApiKey String?
+  asaasWebhookToken     String?
+  updatedAt             DateTime @updatedAt
+
+  @@map("app_settings")
 }
