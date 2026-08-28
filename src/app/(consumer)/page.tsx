@@ -8,9 +8,19 @@ import { CategoryGrid } from '@/components/categories/CategoryGrid'
 import { OfferCard } from '@/components/offers/OfferCard'
 import { LandingPage } from '@/components/landing/LandingPage'
 
-export default async function HomePage() {
+function AccessDeniedBanner() {
+  return (
+    <div className="bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
+      Você não tem acesso a essa área com a conta que está logada agora. Se estava tentando acessar o
+      painel do comerciante ou do admin, entre de novo com a conta certa.
+    </div>
+  )
+}
+
+export default async function HomePage({ searchParams }: { searchParams: { erro?: string } }) {
   const location = parseGeoCookie(cookies().get(GEO_COOKIE)?.value)
   const city = location ? null : parseCityCookie(cookies().get(CITY_COOKIE)?.value)
+  const accessDenied = searchParams.erro === 'acesso-negado'
 
   if (!location && !city) {
     const [categories, cities, plans] = await Promise.all([
@@ -18,7 +28,12 @@ export default async function HomePage() {
       getCitiesWithActiveBusinesses(),
       getPaidPlans(),
     ])
-    return <LandingPage categories={categories} cities={cities} plans={plans} />
+    return (
+      <>
+        {accessDenied && <AccessDeniedBanner />}
+        <LandingPage categories={categories} cities={cities} plans={plans} />
+      </>
+    )
   }
 
   const [categories, offers] = await Promise.all([
@@ -28,6 +43,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
+      {accessDenied && <AccessDeniedBanner />}
       <div className="bg-brand-navy px-4 pb-6 pt-5 text-white">
         <div className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-brand-green">
