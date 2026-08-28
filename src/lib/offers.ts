@@ -80,15 +80,19 @@ export async function getFeaturedOffers(input: {
       endDate: { gte: new Date() },
     },
     orderBy: { createdAt: 'desc' },
-    include: { business: true },
+    include: { business: { include: { plan: true } } },
   })
 
   const ratings = await getRatingsForBusinesses(Array.from(new Set(rows.map((row) => row.business.id))))
   const items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
+  const priceCentsByOfferId = new Map(rows.map((row) => [row.id, row.business.plan?.priceCents ?? 0]))
 
-  if (input.location) {
-    items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
-  }
+  items.sort((a, b) => {
+    const planDiff = (priceCentsByOfferId.get(b.id) ?? 0) - (priceCentsByOfferId.get(a.id) ?? 0)
+    if (planDiff !== 0) return planDiff
+    if (input.location) return (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+    return 0
+  })
 
   return items.slice(0, input.limit)
 }

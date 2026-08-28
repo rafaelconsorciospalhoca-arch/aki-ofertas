@@ -39,6 +39,21 @@ const blockedOwnerOffer = {
   business: blockedOwnerBusiness,
 }
 
+const proBusiness = { ...bigBurger, id: 'biz-5', slug: 'pro-business', plan: { priceCents: 19990 } }
+const freeBusiness = { ...farBusiness, id: 'biz-6', slug: 'free-business', plan: null }
+const proOffer = {
+  id: 'offer-5', slug: 'oferta-pro', title: 'Oferta Pro', imageUrl: null,
+  originalPrice: 2000, discountPrice: 1500, discountPercent: 25, createdAt: new Date('2026-01-05'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
+  business: proBusiness,
+}
+const freeOffer = {
+  id: 'offer-6', slug: 'oferta-free', title: 'Oferta Free', imageUrl: null,
+  originalPrice: 2000, discountPrice: 1500, discountPercent: 25, createdAt: new Date('2026-01-06'),
+  startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
+  business: freeBusiness,
+}
+
 const allOffers = [nearOffer, farOffer, pendingOffer, blockedOwnerOffer]
 
 // Simulates Prisma applying the `where` clause server-side, so tests can prove
@@ -98,6 +113,22 @@ describe('getFeaturedOffers', () => {
     const result = await getFeaturedOffers({ location: { lat: -25.9006, lng: -53.0489 }, limit: 10 })
 
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer', 'pizza-grande'])
+  })
+
+  it('orders by the business plan price, highest first, regardless of location', async () => {
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([freeOffer, proOffer] as never)
+
+    const result = await getFeaturedOffers({ location: null, limit: 10 })
+
+    expect(result.map((o) => o.id)).toEqual(['offer-5', 'offer-6'])
+  })
+
+  it('treats a business with no plan as the lowest priority', async () => {
+    vi.mocked(prisma.offer.findMany).mockResolvedValue([proOffer, freeOffer] as never)
+
+    const result = await getFeaturedOffers({ location: null, limit: 10 })
+
+    expect(result.map((o) => o.id)).toEqual(['offer-5', 'offer-6'])
   })
 
   it('attaches the business rating from getRatingsForBusinesses', async () => {
