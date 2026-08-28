@@ -1,0 +1,30 @@
+workflows:
+  aki-ofertas-mobile:
+    name: Aki Ofertas — Build de produção (iOS + Android)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - eas_credentials
+      vars:
+        EXPO_TOKEN: $EXPO_TOKEN
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Instalar dependências
+        script: |
+          cd app-mobile
+          npm ci
+      - name: Build de produção (iOS + Android via EAS)
+        script: |
+          cd app-mobile
+          npx eas-cli build --platform all --profile production --non-interactive
+    publishing:
+      email:
+        recipients:
+          - $CODEMAGIC_EMAIL
