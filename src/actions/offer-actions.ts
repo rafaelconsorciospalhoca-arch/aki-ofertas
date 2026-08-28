@@ -31,7 +31,7 @@ export async function requireMerchantBusiness() {
 
   const business = await prisma.business.findFirst({
     where: { ownerId: session.user.id as string },
-    include: { owner: { select: { blocked: true } } },
+    include: { owner: { select: { blocked: true } }, plan: true },
   })
   if (!business || business.owner.blocked || business.status === 'SUSPENDED') {
     return null
@@ -54,6 +54,16 @@ export async function createOffer(input: OfferActionInput): Promise<OfferResult>
   const computed = parseOfferInput(parsed.data)
   if ('error' in computed) {
     return { ok: false, error: computed.error }
+  }
+
+  if (business.plan) {
+    const activeCount = await prisma.offer.count({ where: { businessId: business.id, status: 'ACTIVE' } })
+    if (activeCount >= business.plan.maxOffersPerMonth) {
+      return {
+        ok: false,
+        error: `Você atingiu o limite de ${business.plan.maxOffersPerMonth} ofertas ativas do seu plano. Desative uma oferta ou assine um plano maior pra criar mais.`,
+      }
+    }
   }
 
   const slug = `${slugify(parsed.data.title)}-${randomSlugSuffix()}`
