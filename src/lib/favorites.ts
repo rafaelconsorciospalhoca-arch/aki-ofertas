@@ -28,7 +28,7 @@ export async function getFavoritesForUser(userId: string): Promise<FavoritesResu
   const businesses: BusinessSummary[] = []
 
   for (const row of rows) {
-    if (row.offer && row.offer.status === 'ACTIVE') {
+    if (row.offer && row.offer.status === 'ACTIVE' && row.offer.business.status === 'ACTIVE') {
       offers.push(toOfferListItem(row.offer, row.offer.business, null, ratings.get(row.offer.businessId) ?? null))
     } else if (row.business && row.business.status === 'ACTIVE') {
       businesses.push({

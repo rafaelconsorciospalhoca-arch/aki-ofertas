@@ -22,6 +22,8 @@ const offer = {
 
 const pendingOffer = { ...offer, id: 'offer-2', status: 'PENDING' }
 const pendingBusiness = { ...business, id: 'biz-2', status: 'PENDING' }
+const suspendedBusiness = { ...business, id: 'biz-3', status: 'SUSPENDED' }
+const offerFromSuspendedBusiness = { ...offer, id: 'offer-3', business: suspendedBusiness }
 
 describe('getFavoritesForUser', () => {
   afterEach(() => vi.clearAllMocks())
@@ -38,6 +40,17 @@ describe('getFavoritesForUser', () => {
 
     expect(result.offers.map((o) => o.slug)).toEqual(['combo-burguer'])
     expect(result.businesses.map((b) => b.slug)).toEqual(['big-burger'])
+  })
+
+  it('excludes a favorited offer whose business has been SUSPENDED', async () => {
+    vi.mocked(prisma.favorite.findMany).mockResolvedValue([
+      { offer, business: null },
+      { offer: offerFromSuspendedBusiness, business: null },
+    ] as never)
+
+    const result = await getFavoritesForUser('user-1')
+
+    expect(result.offers.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 })
 

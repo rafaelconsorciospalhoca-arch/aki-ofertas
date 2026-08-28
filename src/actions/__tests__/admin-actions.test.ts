@@ -76,7 +76,22 @@ describe('updateBusinessStatus', () => {
     expect(result).toEqual({ ok: true })
     expect(prisma.business.update).toHaveBeenCalledWith({
       where: { id: 'biz-1' },
-      data: { status: 'ACTIVE' },
+      data: { status: 'ACTIVE', suspendedReason: null },
+    })
+  })
+
+  it('sets suspendedReason to ADMIN when an admin suspends a business', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessStatus('biz-1', 'SUSPENDED')
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { status: 'SUSPENDED', suspendedReason: 'ADMIN' },
     })
   })
 
@@ -107,7 +122,27 @@ describe('updateBusinessStatus', () => {
 
     await updateBusinessStatus('biz-1', 'ACTIVE')
 
-    expect(prisma.business.update).toHaveBeenCalledWith({ where: { id: 'biz-1' }, data: { status: 'ACTIVE' } })
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { status: 'ACTIVE', suspendedReason: null },
+    })
+  })
+
+  it('clears suspendedReason when an admin reactivates a SUSPENDED business', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1',
+      status: 'SUSPENDED',
+      suspendedReason: 'ADMIN',
+    } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessStatus('biz-1', 'ACTIVE')
+
+    expect(result).toEqual({ ok: true })
+    const call = vi.mocked(prisma.business.update).mock.calls[0][0]
+    expect((call.data as { suspendedReason: string | null }).suspendedReason).toBeNull()
   })
 })
 

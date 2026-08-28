@@ -59,6 +59,9 @@ export async function createAsaasSubscription(
       nextDueDate: new Date().toISOString().slice(0, 10),
       description: input.description,
       externalReference: input.externalReference,
+      callback: {
+        successUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://akiofertas.com.br'}/comerciante/plano?pago=1`,
+      },
     }),
   })
 

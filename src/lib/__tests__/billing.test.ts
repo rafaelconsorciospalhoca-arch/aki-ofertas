@@ -25,7 +25,9 @@ describe('activateSubscription', () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
       id: 'sub-local-1', businessId: 'biz-1', planId: 'plan-1',
     } as never)
-    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: 'TRIAL_EXPIRED' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', status: 'SUSPENDED', suspendedReason: 'TRIAL_EXPIRED',
+    } as never)
 
     await activateSubscription('sub_123')
 
@@ -39,17 +41,51 @@ describe('activateSubscription', () => {
     })
   })
 
-  it('never lifts an admin-imposed suspension', async () => {
+  it('never lifts an admin-imposed suspension (only updates planId)', async () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
       id: 'sub-local-1', businessId: 'biz-1', planId: 'plan-1',
     } as never)
-    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: 'ADMIN' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', status: 'SUSPENDED', suspendedReason: 'ADMIN',
+    } as never)
 
     await activateSubscription('sub_123')
 
     expect(prisma.business.update).toHaveBeenCalledWith({
       where: { id: 'biz-1' },
       data: { planId: 'plan-1' },
+    })
+  })
+
+  it('does not promote a REJECTED business to ACTIVE', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
+      id: 'sub-local-1', businessId: 'biz-1', planId: 'plan-1',
+    } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', status: 'REJECTED', suspendedReason: null,
+    } as never)
+
+    await activateSubscription('sub_123')
+
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { planId: 'plan-1' },
+    })
+  })
+
+  it('only updates planId when the business is already ACTIVE (plan upgrade, no suspension to lift)', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue({
+      id: 'sub-local-1', businessId: 'biz-1', planId: 'plan-2',
+    } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', status: 'ACTIVE', suspendedReason: null,
+    } as never)
+
+    await activateSubscription('sub_123')
+
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { planId: 'plan-2' },
     })
   })
 })

@@ -29,6 +29,13 @@ describe('GET /api/cron/expire-trials', () => {
     expect(response.status).toBe(401)
   })
 
+  it('rejects (fails closed) when CRON_SECRET is unset, even with the literal "Bearer undefined" header', async () => {
+    delete process.env.CRON_SECRET
+
+    const response = await GET(request('Bearer undefined'))
+    expect(response.status).toBe(401)
+  })
+
   it('suspends only ACTIVE businesses past their trial with no active subscription', async () => {
     process.env.CRON_SECRET = 'the-secret'
     vi.mocked(prisma.business.findMany).mockResolvedValue([

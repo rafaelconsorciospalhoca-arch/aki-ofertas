@@ -7,7 +7,11 @@ export async function activateSubscription(asaasSubscriptionId: string): Promise
   await prisma.subscription.update({ where: { id: subscription.id }, data: { status: 'ACTIVE' } })
 
   const business = await prisma.business.findUnique({ where: { id: subscription.businessId } })
-  if (business?.suspendedReason === 'ADMIN') {
+  const canLiftSuspension =
+    business?.status === 'SUSPENDED' &&
+    (business?.suspendedReason === 'TRIAL_EXPIRED' || business?.suspendedReason === 'PAYMENT_OVERDUE')
+
+  if (!canLiftSuspension) {
     await prisma.business.update({ where: { id: subscription.businessId }, data: { planId: subscription.planId } })
     return
   }

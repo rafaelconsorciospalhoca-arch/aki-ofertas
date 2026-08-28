@@ -183,22 +183,37 @@ export async function subscribeToPlan(planId: string, document: string): Promise
     return { ok: false, error: 'Empresa não encontrada.' }
   }
 
+  if (business.status === 'PENDING' || business.status === 'REJECTED') {
+    return { ok: false, error: 'Sua empresa ainda não foi aprovada.' }
+  }
+
   const plan = await prisma.plan.findUnique({ where: { id: planId } })
   if (!plan) {
     return { ok: false, error: 'Plano não encontrado.' }
+  }
+
+  const existingSubscription = await prisma.subscription.findFirst({
+    where: { businessId: business.id, status: { in: ['ACTIVE', 'PENDING'] } },
+  })
+  if (existingSubscription) {
+    return { ok: false, error: 'Você já tem uma assinatura em andamento ou ativa.' }
   }
 
   await prisma.business.update({ where: { id: business.id }, data: { document } })
 
   let asaasCustomerId = business.asaasCustomerId
   if (!asaasCustomerId) {
-    asaasCustomerId = await createAsaasCustomer({
-      name: business.owner.name,
-      cpfCnpj: document,
-      email: business.email ?? business.owner.email,
-      mobilePhone: business.whatsapp ?? '',
-      externalReference: business.id,
-    })
+    try {
+      asaasCustomerId = await createAsaasCustomer({
+        name: business.owner.name,
+        cpfCnpj: document,
+        email: business.email ?? business.owner.email,
+        mobilePhone: business.whatsapp ?? '',
+        externalReference: business.id,
+      })
+    } catch {
+      return { ok: false, error: 'Não foi possível validar seu CPF/CNPJ. Confira e tente novamente.' }
+    }
     await prisma.business.update({ where: { id: business.id }, data: { document, asaasCustomerId } })
   }
 

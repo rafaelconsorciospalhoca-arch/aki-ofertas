@@ -11,7 +11,7 @@ vi.mock('@/lib/db', () => ({
     plan: { findUnique: vi.fn() },
     city: { findFirst: vi.fn() },
     business: { findFirst: vi.fn(), update: vi.fn() },
-    subscription: { create: vi.fn() },
+    subscription: { create: vi.fn(), findFirst: vi.fn() },
     $transaction: vi.fn(),
   },
 }))
@@ -300,5 +300,50 @@ describe('subscribeToPlan', () => {
     expect(createAsaasSubscription).toHaveBeenCalledWith(
       expect.objectContaining({ customerId: 'cus_existing' }),
     )
+  })
+
+  it('rejects when the business already has an active or pending subscription, without calling Asaas', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', status: 'ACTIVE', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-existing', status: 'ACTIVE' } as never)
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+
+    expect(result).toEqual({ ok: false, error: 'Você já tem uma assinatura em andamento ou ativa.' })
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+    expect(createAsaasSubscription).not.toHaveBeenCalled()
+  })
+
+  it('rejects when the business is still PENDING approval', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', status: 'PENDING', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+
+    expect(result).toEqual({ ok: false, error: 'Sua empresa ainda não foi aprovada.' })
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+  })
+
+  it('returns a friendly error instead of throwing when Asaas rejects the document', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', status: 'ACTIVE', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue(null)
+    vi.mocked(createAsaasCustomer).mockRejectedValue(new Error('Asaas /customers falhou: CPF inválido'))
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+
+    expect(result).toEqual({ ok: false, error: 'Não foi possível validar seu CPF/CNPJ. Confira e tente novamente.' })
+    expect(createAsaasSubscription).not.toHaveBeenCalled()
   })
 })

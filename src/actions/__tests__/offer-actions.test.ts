@@ -25,6 +25,7 @@ const validInput = {
 
 const unblockedBusiness = { id: 'biz-1', owner: { id: 'u1', blocked: false } }
 const blockedOwnerBusiness = { id: 'biz-1', owner: { id: 'u1', blocked: true } }
+const suspendedBusiness = { id: 'biz-1', status: 'SUSPENDED', owner: { id: 'u1', blocked: false } }
 
 describe('createOffer', () => {
   afterEach(() => {
@@ -46,6 +47,14 @@ describe('createOffer', () => {
   it('rejects when the merchant owner account is blocked', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue(blockedOwnerBusiness as never)
+
+    const result = await createOffer(validInput)
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the business is SUSPENDED (paywall enforced server-side via requireMerchantBusiness)', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue(suspendedBusiness as never)
 
     const result = await createOffer(validInput)
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })

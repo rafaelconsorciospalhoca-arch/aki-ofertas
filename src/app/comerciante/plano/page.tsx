@@ -9,10 +9,15 @@ function daysLeft(trialEndsAt: Date | null): number | null {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)))
 }
 
-export default async function ComerciantePlanoPage() {
+export default async function ComerciantePlanoPage({
+  searchParams,
+}: {
+  searchParams: { pago?: string }
+}) {
   const session = await auth()
   const business = await getBusinessForOwner(session!.user!.id as string)
   const plans = await getPaidPlans()
+  const pago = searchParams.pago
 
   if (!business) {
     return (
@@ -27,6 +32,11 @@ export default async function ComerciantePlanoPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {pago ? (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          Pagamento em processamento! Assim que confirmado, seu plano será ativado.
+        </div>
+      ) : null}
       <div>
         <h1 className="text-xl font-bold text-neutral-900">Meu plano</h1>
         {business.status === 'SUSPENDED' ? (

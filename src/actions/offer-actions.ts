@@ -33,7 +33,7 @@ export async function requireMerchantBusiness() {
     where: { ownerId: session.user.id as string },
     include: { owner: { select: { blocked: true } } },
   })
-  if (!business || business.owner.blocked) {
+  if (!business || business.owner.blocked || business.status === 'SUSPENDED') {
     return null
   }
 

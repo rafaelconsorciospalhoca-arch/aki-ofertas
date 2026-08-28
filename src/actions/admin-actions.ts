@@ -36,11 +36,14 @@ export async function updateBusinessStatus(
   }
 
   const isApprovingFromPending = business.status === 'PENDING' && parsed.data === 'ACTIVE'
+  const suspendedReasonUpdate =
+    parsed.data === 'SUSPENDED' ? { suspendedReason: 'ADMIN' as const } : parsed.data === 'ACTIVE' ? { suspendedReason: null } : {}
+
   await prisma.business.update({
     where: { id: businessId },
     data: isApprovingFromPending
-      ? { status: parsed.data, trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) }
-      : { status: parsed.data },
+      ? { status: parsed.data, trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), ...suspendedReasonUpdate }
+      : { status: parsed.data, ...suspendedReasonUpdate },
   })
 
   return { ok: true }
