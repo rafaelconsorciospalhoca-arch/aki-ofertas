@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 function EntrarForm() {
@@ -25,8 +25,20 @@ function EntrarForm() {
       return
     }
     const raw = searchParams.get('callbackUrl')
-    const target = raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/'
-    router.push(target)
+    if (raw && raw.startsWith('/') && !raw.startsWith('//')) {
+      router.push(raw)
+      return
+    }
+
+    const session = await getSession()
+    const role = (session?.user as { role?: string } | undefined)?.role
+    if (role === 'MERCHANT') {
+      router.push('/comerciante')
+    } else if (role === 'ADMIN') {
+      router.push('/admin')
+    } else {
+      router.push('/')
+    }
   }
 
   return (
