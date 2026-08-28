@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { getActiveCategories, getCitiesWithActiveBusinesses } from '@/lib/categories'
 import { getFeaturedOffers } from '@/lib/offers'
+import { getPaidPlans } from '@/lib/plans'
 import { GEO_COOKIE, parseGeoCookie, CITY_COOKIE, parseCityCookie } from '@/lib/location'
 import { CategoryGrid } from '@/components/categories/CategoryGrid'
 import { OfferCard } from '@/components/offers/OfferCard'
@@ -12,8 +13,12 @@ export default async function HomePage() {
   const city = location ? null : parseCityCookie(cookies().get(CITY_COOKIE)?.value)
 
   if (!location && !city) {
-    const [categories, cities] = await Promise.all([getActiveCategories(), getCitiesWithActiveBusinesses()])
-    return <LandingPage categories={categories} cities={cities} />
+    const [categories, cities, plans] = await Promise.all([
+      getActiveCategories(),
+      getCitiesWithActiveBusinesses(),
+      getPaidPlans(),
+    ])
+    return <LandingPage categories={categories} cities={cities} plans={plans} />
   }
 
   const [categories, offers] = await Promise.all([

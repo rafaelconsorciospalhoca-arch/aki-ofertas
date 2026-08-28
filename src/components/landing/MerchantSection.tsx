@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Benefits } from './Benefits'
 import { PricingCards } from './PricingCards'
 
-export function MerchantSection() {
+export function MerchantSection({ plans }: { plans: { id: string; name: string; priceCents: number }[] }) {
   return (
     <section className="bg-brand-navy-dark px-4 py-14 text-white">
       <div className="mx-auto max-w-6xl">
@@ -21,7 +21,7 @@ export function MerchantSection() {
         </div>
 
         <div className="mt-12">
-          <PricingCards />
+          <PricingCards plans={plans} />
         </div>
       </div>
     </section>
