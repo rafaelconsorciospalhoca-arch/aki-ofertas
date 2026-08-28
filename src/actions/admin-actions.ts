@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { upsertAppSettings, type UpsertAppSettingsInput } from '@/lib/app-settings'
 
 async function requireAdmin(): Promise<boolean> {
   const session = await auth()
@@ -297,6 +298,15 @@ export async function createPlan(input: PlanInput): Promise<PlanResult> {
   })
 
   return { ok: true, planId: plan.id }
+}
+
+export async function saveAppSettings(input: UpsertAppSettingsInput): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  await upsertAppSettings(input)
+  return { ok: true }
 }
 
 export async function updatePlan(id: string, input: PlanInput): Promise<{ ok: true } | { ok: false; error: string }> {

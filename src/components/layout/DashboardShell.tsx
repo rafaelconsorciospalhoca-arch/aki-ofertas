@@ -20,6 +20,7 @@ const NAV_ITEMS: Record<'comerciante' | 'admin', { href: string; label: string }
     { href: '/admin/categorias', label: 'Categorias' },
     { href: '/admin/cidades', label: 'Cidades' },
     { href: '/admin/planos', label: 'Planos' },
+    { href: '/admin/configuracoes', label: 'Configurações' },
   ],
 }
 

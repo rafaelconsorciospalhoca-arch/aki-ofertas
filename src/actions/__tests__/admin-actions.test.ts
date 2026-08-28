@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan } from '@/actions/admin-actions'
+import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan, saveAppSettings } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -10,6 +10,7 @@ vi.mock('@/lib/db', () => ({
     city: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
     plan: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    appSettings: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }))
 
@@ -436,6 +437,30 @@ describe('updatePlan', () => {
     expect(prisma.plan.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
       data: { name: 'Turbo', priceCents: 19990, maxOffersPerMonth: 30, hasFlashOffers: true, hasFullMetrics: true },
+    })
+  })
+})
+
+describe('saveAppSettings', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('rejects when not an admin', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await saveAppSettings({ asaasMode: 'SANDBOX', asaasSandboxApiKey: 'key' })
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('saves the settings when the caller is an admin', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.appSettings.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.appSettings.create).mockResolvedValue({ id: 's1' } as never)
+
+    const result = await saveAppSettings({ asaasMode: 'SANDBOX', asaasSandboxApiKey: 'key' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.appSettings.create).toHaveBeenCalledWith({
+      data: { asaasMode: 'SANDBOX', asaasSandboxApiKey: 'key' },
     })
   })
 })
