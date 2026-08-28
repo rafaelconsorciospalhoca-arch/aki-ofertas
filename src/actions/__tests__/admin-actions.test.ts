@@ -79,6 +79,36 @@ describe('updateBusinessStatus', () => {
       data: { status: 'ACTIVE' },
     })
   })
+
+  it('sets a 3-day trial when approving a PENDING business to ACTIVE', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'PENDING' } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const before = Date.now()
+    const result = await updateBusinessStatus('biz-1', 'ACTIVE')
+    const after = Date.now()
+
+    expect(result).toEqual({ ok: true })
+    const call = vi.mocked(prisma.business.update).mock.calls[0][0]
+    expect(call.where).toEqual({ id: 'biz-1' })
+    expect(call.data.status).toBe('ACTIVE')
+    const trialEndsAt = (call.data as { trialEndsAt: Date }).trialEndsAt.getTime()
+    expect(trialEndsAt).toBeGreaterThanOrEqual(before + 3 * 24 * 60 * 60 * 1000 - 1000)
+    expect(trialEndsAt).toBeLessThanOrEqual(after + 3 * 24 * 60 * 60 * 1000 + 1000)
+  })
+
+  it('does not reset the trial when reactivating a SUSPENDED business to ACTIVE manually', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'SUSPENDED' } as never)
+    vi.mocked(prisma.business.update).mockResolvedValue({ id: 'biz-1' } as never)
+
+    await updateBusinessStatus('biz-1', 'ACTIVE')
+
+    expect(prisma.business.update).toHaveBeenCalledWith({ where: { id: 'biz-1' }, data: { status: 'ACTIVE' } })
+  })
 })
 
 const validCategoryInput = { name: 'Pet Shop', icon: 'pet', order: '9', active: true }

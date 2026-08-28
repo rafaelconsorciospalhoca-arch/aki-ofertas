@@ -35,7 +35,13 @@ export async function updateBusinessStatus(
     return { ok: false, error: 'Empresa não encontrada.' }
   }
 
-  await prisma.business.update({ where: { id: businessId }, data: { status: parsed.data } })
+  const isApprovingFromPending = business.status === 'PENDING' && parsed.data === 'ACTIVE'
+  await prisma.business.update({
+    where: { id: businessId },
+    data: isApprovingFromPending
+      ? { status: parsed.data, trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) }
+      : { status: parsed.data },
+  })
 
   return { ok: true }
 }
