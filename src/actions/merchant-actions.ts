@@ -6,6 +6,7 @@ import { hashPassword } from '@/lib/password'
 import { slugify, randomSlugSuffix } from '@/lib/slug'
 import { auth } from '@/lib/auth'
 import { geocodeAddress } from '@/lib/geocode'
+import { createAsaasCustomer, createAsaasSubscription } from '@/lib/asaas'
 
 const signUpMerchantSchema = z.object({
   ownerName: z.string().min(2, 'Informe seu nome.'),
@@ -160,4 +161,57 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
   })
 
   return { ok: true }
+}
+
+export type SubscribeToPlanResult = { ok: true; invoiceUrl: string } | { ok: false; error: string }
+
+export async function subscribeToPlan(planId: string, document: string): Promise<SubscribeToPlanResult> {
+  const session = await auth()
+  if (!session?.user || (session.user as { role?: string }).role !== 'MERCHANT') {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  if (!document.trim()) {
+    return { ok: false, error: 'Informe seu CPF ou CNPJ.' }
+  }
+
+  const business = await prisma.business.findFirst({
+    where: { ownerId: session.user.id as string },
+    include: { owner: { select: { blocked: true, name: true, email: true } } },
+  })
+  if (!business || business.owner.blocked) {
+    return { ok: false, error: 'Empresa não encontrada.' }
+  }
+
+  const plan = await prisma.plan.findUnique({ where: { id: planId } })
+  if (!plan) {
+    return { ok: false, error: 'Plano não encontrado.' }
+  }
+
+  await prisma.business.update({ where: { id: business.id }, data: { document } })
+
+  let asaasCustomerId = business.asaasCustomerId
+  if (!asaasCustomerId) {
+    asaasCustomerId = await createAsaasCustomer({
+      name: business.owner.name,
+      cpfCnpj: document,
+      email: business.email ?? business.owner.email,
+      mobilePhone: business.whatsapp ?? '',
+      externalReference: business.id,
+    })
+    await prisma.business.update({ where: { id: business.id }, data: { document, asaasCustomerId } })
+  }
+
+  const { subscriptionId, invoiceUrl } = await createAsaasSubscription({
+    customerId: asaasCustomerId,
+    value: plan.priceCents / 100,
+    description: `Plano ${plan.name}`,
+    externalReference: business.id,
+  })
+
+  await prisma.subscription.create({
+    data: { businessId: business.id, planId: plan.id, status: 'PENDING', asaasSubscriptionId: subscriptionId },
+  })
+
+  return { ok: true, invoiceUrl }
 }

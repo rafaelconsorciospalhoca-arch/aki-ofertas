@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { signUpMerchant, updateBusiness } from '@/actions/merchant-actions'
+import { signUpMerchant, updateBusiness, subscribeToPlan } from '@/actions/merchant-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { geocodeAddress } from '@/lib/geocode'
+import { createAsaasCustomer, createAsaasSubscription } from '@/lib/asaas'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -10,6 +11,7 @@ vi.mock('@/lib/db', () => ({
     plan: { findUnique: vi.fn() },
     city: { findFirst: vi.fn() },
     business: { findFirst: vi.fn(), update: vi.fn() },
+    subscription: { create: vi.fn() },
     $transaction: vi.fn(),
   },
 }))
@@ -20,6 +22,11 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/geocode', () => ({
   geocodeAddress: vi.fn(),
+}))
+
+vi.mock('@/lib/asaas', () => ({
+  createAsaasCustomer: vi.fn(),
+  createAsaasSubscription: vi.fn(),
 }))
 
 const validInput = {
@@ -221,5 +228,77 @@ describe('updateBusiness', () => {
     expect(result).toEqual({ ok: true })
     const data = vi.mocked(prisma.business.update).mock.calls[0][0].data as { serviceCities: { set: { id: string }[] } }
     expect(data.serviceCities.set.map((c) => c.id).sort()).toEqual(['city-1', 'city-2'])
+  })
+})
+
+describe('subscribeToPlan', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('rejects when not a merchant session', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await subscribeToPlan('plan-1', '12345678900')
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when no CPF/CNPJ was provided', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    const result = await subscribeToPlan('plan-1', '')
+    expect(result).toEqual({ ok: false, error: 'Informe seu CPF ou CNPJ.' })
+  })
+
+  it('rejects when the plan does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue(null)
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+    expect(result).toEqual({ ok: false, error: 'Plano não encontrado.' })
+  })
+
+  it('creates an Asaas customer when the business has none yet, then the subscription, and returns the invoice url', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(createAsaasCustomer).mockResolvedValue('cus_123')
+    vi.mocked(createAsaasSubscription).mockResolvedValue({ subscriptionId: 'sub_123', invoiceUrl: 'https://sandbox.asaas.com/i/abc' })
+    vi.mocked(prisma.subscription.create).mockResolvedValue({ id: 'sub-local-1' } as never)
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+
+    expect(result).toEqual({ ok: true, invoiceUrl: 'https://sandbox.asaas.com/i/abc' })
+    expect(prisma.business.update).toHaveBeenCalledWith({ where: { id: 'biz-1' }, data: { document: '12345678900', asaasCustomerId: 'cus_123' } })
+    expect(createAsaasCustomer).toHaveBeenCalledWith({
+      name: 'João', cpfCnpj: '12345678900', email: 'joao@x.com', mobilePhone: '5546999990000', externalReference: 'biz-1',
+    })
+    expect(createAsaasSubscription).toHaveBeenCalledWith({
+      customerId: 'cus_123', value: 49.9, description: 'Plano Básico', externalReference: 'biz-1',
+    })
+    expect(prisma.subscription.create).toHaveBeenCalledWith({
+      data: { businessId: 'biz-1', planId: 'plan-1', status: 'PENDING', asaasSubscriptionId: 'sub_123' },
+    })
+  })
+
+  it('reuses an existing Asaas customer id instead of creating a new one', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', document: '12345678900', asaasCustomerId: 'cus_existing', whatsapp: '5546999990000', email: null,
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(createAsaasSubscription).mockResolvedValue({ subscriptionId: 'sub_123', invoiceUrl: 'https://sandbox.asaas.com/i/abc' })
+    vi.mocked(prisma.subscription.create).mockResolvedValue({ id: 'sub-local-1' } as never)
+
+    await subscribeToPlan('plan-1', '12345678900')
+
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+    expect(createAsaasSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'cus_existing' }),
+    )
   })
 })
