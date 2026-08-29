@@ -32,7 +32,9 @@ export type OfferDetail = {
   startDate: string
   endDate: string
   deliveryEnabled: boolean
+  deliveryZones: { id: string; neighborhood: string; feeCents: number }[]
   business: {
+    id: string
     name: string
     slug: string
     whatsapp: string | null
@@ -139,7 +141,7 @@ export type CreateOrderInput = {
   phone: string
   address: string
   number?: string
-  neighborhood?: string
+  deliveryZoneId: string
   city: string
   state: string
   zip?: string
