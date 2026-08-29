@@ -33,6 +33,7 @@ export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
             </View>
           )}
         </View>
+        <Text style={styles.businessName} numberOfLines={1}>{offer.businessName}</Text>
         {offer.distanceLabel && <Text style={styles.distance}>📍 {offer.distanceLabel}</Text>}
       </View>
     </Pressable>
@@ -77,6 +78,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 20, fontWeight: '800', color: colors.green },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontSize: 13, color: colors.neutral500, flexShrink: 1 },
+  businessName: { fontSize: 12, fontWeight: '600', color: colors.neutral400, marginTop: 1 },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   ratingText: { fontSize: 11, fontWeight: '700', color: colors.neutral900 },
   distance: { fontSize: 11, color: colors.neutral400, marginTop: 4 },

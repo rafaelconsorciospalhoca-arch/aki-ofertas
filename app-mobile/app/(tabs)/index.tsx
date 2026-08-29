@@ -106,22 +106,19 @@ export default function InicioScreen() {
       ListHeaderComponent={
         <View>
           <View style={styles.navyHeader}>
-            {greeting ? (
+            <View style={styles.brandRow}>
+              <Image source={require('../../assets/brand/logo.png')} style={styles.logoImage} />
               <View>
-                <Text style={styles.greeting}>{greeting}! 👋</Text>
-                {locationLabel(location) && <Text style={styles.locationText}>📍 {locationLabel(location)}</Text>}
-              </View>
-            ) : (
-              <View style={styles.brandRow}>
-                <Image source={require('../../assets/brand/logo.png')} style={styles.logoImage} />
-                <View>
+                {greeting ? (
+                  <Text style={styles.greeting}>{greeting}! 👋</Text>
+                ) : (
                   <Text style={styles.logoText}>
                     Aki<Text style={{ color: colors.greenLight }}>Ofertas</Text>
                   </Text>
-                  {locationLabel(location) && <Text style={styles.locationText}>📍 {locationLabel(location)}</Text>}
-                </View>
+                )}
+                {locationLabel(location) && <Text style={styles.locationText}>📍 {locationLabel(location)}</Text>}
               </View>
-            )}
+            </View>
             <SearchBar value={query} onChangeText={setQuery} />
           </View>
           <View style={styles.header}>
