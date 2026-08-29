@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -10,7 +11,7 @@ export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
     <Pressable style={styles.card} onPress={() => router.push(`/oferta/${offer.slug}`)}>
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={styles.image} />
+          <Image source={{ uri: offer.imageUrl }} style={styles.image} contentFit="cover" contentPosition="top" />
         ) : (
           <View style={styles.imagePlaceholder} />
         )}
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   imageWrapper: { width: '100%', height: 170, backgroundColor: colors.neutral100 },
-  image: { width: '100%', height: '100%', resizeMode: 'cover' },
+  image: { width: '100%', height: '100%' },
   imagePlaceholder: { width: '100%', height: '100%', backgroundColor: colors.neutral100 },
   tag: {
     position: 'absolute',
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  discountText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  discountText: { color: colors.white, fontSize: 14, fontWeight: '800' },
   info: { padding: 12, gap: 2 },
   price: { fontSize: 20, fontWeight: '800', color: colors.green },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

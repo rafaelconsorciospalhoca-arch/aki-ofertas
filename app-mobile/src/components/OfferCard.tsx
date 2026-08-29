@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -10,7 +11,7 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
     <Pressable style={styles.card} onPress={() => router.push(`/oferta/${offer.slug}`)}>
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={styles.image} />
+          <Image source={{ uri: offer.imageUrl }} style={styles.image} contentFit="cover" contentPosition="top" />
         ) : (
           <View style={styles.imagePlaceholder} />
         )}
@@ -30,8 +31,8 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
           )}
         </View>
         <View style={styles.priceRow}>
-          <Text style={styles.originalPrice}>{formatCents(offer.originalPrice)}</Text>
-          <Text style={styles.discountPrice}>{formatCents(offer.discountPrice)}</Text>
+          <Text style={styles.originalPrice}>De {formatCents(offer.originalPrice)}</Text>
+          <Text style={styles.discountPrice}>por {formatCents(offer.discountPrice)}</Text>
         </View>
         {offer.distanceLabel && <Text style={styles.distance}>{offer.distanceLabel}</Text>}
       </View>
@@ -55,8 +56,8 @@ const styles = StyleSheet.create({
   imageWrapper: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.neutral100 },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { width: '100%', height: '100%', backgroundColor: colors.neutral100 },
-  discountBadge: { position: 'absolute', left: 4, top: 4, backgroundColor: colors.red, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },
-  discountText: { color: colors.white, fontSize: 10, fontWeight: '700' },
+  discountBadge: { position: 'absolute', left: 4, top: 4, backgroundColor: colors.red, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3 },
+  discountText: { color: colors.white, fontSize: 13, fontWeight: '800' },
   info: { flex: 1, justifyContent: 'center' },
   title: { fontSize: 14, fontWeight: '700', color: colors.neutral900 },
   businessRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

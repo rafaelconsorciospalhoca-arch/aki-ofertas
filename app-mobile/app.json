@@ -36,7 +36,8 @@
           "locationWhenInUsePermission": "Aki Ofertas usa sua localização para mostrar ofertas perto de você.",
           "locationAlwaysAndWhenInUsePermission": "Aki Ofertas usa sua localização para mostrar ofertas perto de você."
         }
-      ]
+      ],
+      "expo-image"
     ]
   }
 }

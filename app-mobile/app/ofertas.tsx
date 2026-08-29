@@ -77,7 +77,7 @@ export default function OfertasScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  filterRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  filterRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
   chip: { backgroundColor: colors.neutral100, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   chipSmall: { backgroundColor: colors.neutral100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   chipActive: { backgroundColor: colors.green },
