@@ -38,7 +38,7 @@ export default async function OfertasPage({
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-lg font-bold text-neutral-900">Ofertas perto de você</h1>
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+      <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4">
         <Link
           href={buildFilterHref(undefined, radiusKm)}
           className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
@@ -61,7 +61,7 @@ export default async function OfertasPage({
       </div>
 
       {location && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4">
           <Link
             href={buildFilterHref(searchParams.categoria, undefined)}
             className={`flex-shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${

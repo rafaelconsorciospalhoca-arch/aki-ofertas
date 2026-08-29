@@ -14,7 +14,7 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
       <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-neutral-100">
         {offer.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={offer.imageUrl} alt={offer.title} className="h-full w-full object-cover" />
+          <img src={offer.imageUrl} alt={offer.title} className="h-full w-full object-cover object-top" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-neutral-300">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-6 w-6">
@@ -22,7 +22,7 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
             </svg>
           </div>
         )}
-        <span className="absolute left-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+        <span className="absolute left-1 top-1 rounded bg-red-500 px-2 py-1 text-sm font-extrabold leading-none text-white">
           -{offer.discountPercent}%
         </span>
       </div>
@@ -30,8 +30,8 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
         <h3 className="truncate text-sm font-bold text-neutral-900">{offer.title}</h3>
         <p className="truncate text-xs text-neutral-500">{offer.businessName}</p>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xs text-neutral-400 line-through">{formatCents(offer.originalPrice)}</span>
-          <span className="text-base font-bold text-brand-green">{formatCents(offer.discountPrice)}</span>
+          <span className="text-xs text-neutral-400 line-through">De {formatCents(offer.originalPrice)}</span>
+          <span className="text-base font-bold text-brand-green">por {formatCents(offer.discountPrice)}</span>
         </div>
         {offer.distanceLabel && (
           <p className="mt-0.5 flex items-center gap-1 text-[11px] text-neutral-400">
