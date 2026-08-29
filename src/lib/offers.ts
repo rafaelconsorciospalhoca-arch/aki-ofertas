@@ -148,7 +148,9 @@ export type OfferDetail = {
   startDate: Date
   endDate: Date
   deliveryEnabled: boolean
+  deliveryZones: { id: string; neighborhood: string; feeCents: number }[]
   business: {
+    id: string
     name: string
     slug: string
     whatsapp: string | null
@@ -160,7 +162,14 @@ export type OfferDetail = {
 export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> {
   const row = await prisma.offer.findUnique({
     where: { slug },
-    include: { business: { include: { owner: { select: { blocked: true } } } } },
+    include: {
+      business: {
+        include: {
+          owner: { select: { blocked: true } },
+          deliveryZones: { where: { active: true }, orderBy: { neighborhood: 'asc' } },
+        },
+      },
+    },
   })
 
   if (!row) return null
@@ -182,7 +191,13 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
     startDate: row.startDate,
     endDate: row.endDate,
     deliveryEnabled: row.deliveryEnabled,
+    deliveryZones: row.business.deliveryZones.map((zone) => ({
+      id: zone.id,
+      neighborhood: zone.neighborhood,
+      feeCents: zone.feeCents,
+    })),
     business: {
+      id: row.business.id,
       name: row.business.name,
       slug: row.business.slug,
       whatsapp: row.business.whatsapp,
