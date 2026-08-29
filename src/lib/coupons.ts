@@ -63,6 +63,23 @@ export async function getCouponsForUser(userId: string): Promise<CouponRow[]> {
   return rows.map(toCouponRow)
 }
 
+export type MerchantCouponRow = CouponRow & { customerName: string }
+
+const merchantCouponInclude = {
+  ...couponInclude,
+  user: { select: { name: true } },
+} as const
+
+export async function getCouponsForBusiness(businessId: string): Promise<MerchantCouponRow[]> {
+  const rows = await prisma.coupon.findMany({
+    where: { businessId },
+    include: merchantCouponInclude,
+    orderBy: { generatedAt: 'desc' },
+  })
+
+  return rows.map((row) => ({ ...toCouponRow(row), customerName: row.user.name }))
+}
+
 export async function getCouponForOffer(userId: string, offerId: string): Promise<CouponRow | null> {
   const row = await prisma.coupon.findFirst({
     where: { userId, offerId },
@@ -74,6 +91,47 @@ export async function getCouponForOffer(userId: string, offerId: string): Promis
 
 export async function getCouponsCountForOffer(offerId: string): Promise<number> {
   return prisma.coupon.count({ where: { offerId } })
+}
+
+export type OfferCouponStats = {
+  offerId: string
+  offerTitle: string
+  generated: number
+  used: number
+}
+
+export async function getCouponStatsForBusiness(businessId: string): Promise<OfferCouponStats[]> {
+  const rows = await prisma.coupon.groupBy({
+    by: ['offerId', 'status'],
+    where: { businessId },
+    _count: true,
+  })
+
+  if (rows.length === 0) return []
+
+  const offerIds = Array.from(new Set(rows.map((row) => row.offerId)))
+  const offers = await prisma.offer.findMany({
+    where: { id: { in: offerIds } },
+    select: { id: true, title: true },
+  })
+  const titleById = new Map(offers.map((offer) => [offer.id, offer.title]))
+
+  const statsByOffer = new Map<string, { generated: number; used: number }>()
+  for (const row of rows) {
+    const entry = statsByOffer.get(row.offerId) ?? { generated: 0, used: 0 }
+    entry.generated += row._count
+    if (row.status === 'USED') entry.used += row._count
+    statsByOffer.set(row.offerId, entry)
+  }
+
+  return Array.from(statsByOffer.entries())
+    .map(([offerId, stats]) => ({
+      offerId,
+      offerTitle: titleById.get(offerId) ?? '—',
+      generated: stats.generated,
+      used: stats.used,
+    }))
+    .sort((a, b) => b.generated - a.generated)
 }
 
 export type CouponSummary = { id: string; code: string; expiresAt: Date }
