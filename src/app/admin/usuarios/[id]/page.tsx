@@ -18,6 +18,7 @@ export default async function EditarUsuarioPage({ params }: { params: { id: stri
         userId={user.id}
         initialValues={{
           name: user.name,
+          email: user.email,
           phone: user.phone ?? '',
           city: user.city ?? '',
           state: user.state ?? '',

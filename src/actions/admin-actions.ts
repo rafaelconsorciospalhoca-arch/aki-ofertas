@@ -215,6 +215,7 @@ export async function toggleUserBlocked(
 
 const userProfileSchema = z.object({
   name: z.string().min(2, 'Informe o nome.'),
+  email: z.string().email('E-mail inválido.'),
   phone: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -240,10 +241,18 @@ export async function updateUser(
     return { ok: false, error: 'Usuário não encontrado.' }
   }
 
+  const conflict = await prisma.user.findFirst({
+    where: { email: parsed.data.email, NOT: { id: userId } },
+  })
+  if (conflict) {
+    return { ok: false, error: 'Este e-mail já está cadastrado.' }
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: {
       name: parsed.data.name,
+      email: parsed.data.email,
       phone: parsed.data.phone || null,
       city: parsed.data.city || null,
       state: parsed.data.state || null,

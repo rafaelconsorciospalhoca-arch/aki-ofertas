@@ -6,6 +6,7 @@ import { updateUser } from '@/actions/admin-actions'
 
 type Values = {
   name: string
+  email: string
   phone: string
   city: string
   state: string
@@ -50,6 +51,16 @@ export function UserForm({ userId, initialValues }: { userId: string; initialVal
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         Nome
         <input value={values.name} onChange={(e) => update('name', e.target.value)} className={inputClass} required />
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        E-mail
+        <input
+          type="email"
+          value={values.email}
+          onChange={(e) => update('email', e.target.value)}
+          className={inputClass}
+          required
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         Telefone

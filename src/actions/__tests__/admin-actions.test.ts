@@ -8,7 +8,7 @@ vi.mock('@/lib/db', () => ({
     business: { findUnique: vi.fn(), update: vi.fn() },
     category: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     city: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-    user: { findUnique: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     plan: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     appSettings: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
@@ -389,7 +389,7 @@ describe('toggleUserBlocked', () => {
   })
 })
 
-const validUserInput = { name: 'Rafael Souza', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' }
+const validUserInput = { name: 'Rafael Souza', email: 'rafael@example.com', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' }
 
 describe('updateUser', () => {
   afterEach(() => {
@@ -431,6 +431,7 @@ describe('updateUser', () => {
       'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false },
       'user-2': { id: 'user-2' },
     })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
 
     const result = await updateUser('user-2', validUserInput)
@@ -438,8 +439,22 @@ describe('updateUser', () => {
     expect(result).toEqual({ ok: true })
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-2' },
-      data: { name: 'Rafael Souza', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' },
+      data: { name: 'Rafael Souza', email: 'rafael@example.com', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' },
     })
+  })
+
+  it('rejects an email already used by another user', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({
+      'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false },
+      'user-2': { id: 'user-2' },
+    })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'other-user' } as never)
+
+    const result = await updateUser('user-2', validUserInput)
+
+    expect(result).toEqual({ ok: false, error: 'Este e-mail já está cadastrado.' })
+    expect(prisma.user.update).not.toHaveBeenCalled()
   })
 })
 
