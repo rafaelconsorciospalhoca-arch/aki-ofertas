@@ -70,7 +70,7 @@ export default function OfertaScreen() {
         <Text style={styles.validUntil}>Válido até {formatDate(offer.endDate)}</Text>
         <View style={styles.buttonWrapper}>
           <GenerateCouponButton offerId={offer.id} icon={<Ticket size={18} color={colors.white} />} />
-          {offer.deliveryEnabled && (
+          {offer.deliveryEnabled && offer.deliveryZones.length > 0 && (
             <Pressable style={styles.deliveryButton} onPress={() => router.push(`/pedido/${offer.slug}`)}>
               <Bike size={18} color={colors.green} />
               <Text style={styles.deliveryButtonText}>Pedir com entrega</Text>
