@@ -133,6 +133,7 @@ model Business {
   serviceCities   City[]           @relation("BusinessServiceCities")
   reviews         Review[]
   menuItems       MenuItem[]
+  deliveryZones   DeliveryZone[]
   orders          Order[]
 
   @@map("businesses")
@@ -166,6 +167,19 @@ model MenuItem {
   createdAt   DateTime @default(now())
 
   @@map("menu_items")
+}
+
+model DeliveryZone {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  neighborhood String
+  feeCents     Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([businessId, neighborhood])
+  @@map("delivery_zones")
 }
 
 model BusinessHours {
@@ -225,6 +239,7 @@ model Order {
   address      String
   number       String?
   neighborhood String?
+  deliveryFeeCents Int?
   city         String
   state        String
   zip          String?
