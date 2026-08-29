@@ -14,6 +14,7 @@ const NAV_ITEMS: Record<'comerciante' | 'admin', { href: string; label: string }
     { href: '/comerciante/cupons/validar', label: 'Validar cupom' },
     { href: '/comerciante/empresa', label: 'Empresa' },
     { href: '/comerciante/plano', label: 'Plano' },
+    { href: '/comerciante/conta', label: 'Conta' },
   ],
   admin: [
     { href: '/admin', label: 'Dashboard' },
