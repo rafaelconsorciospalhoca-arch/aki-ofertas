@@ -38,9 +38,18 @@ export function ImageUploadField({
 
     setUploading(true)
     try {
-      const blob = await upload(file.name, file, {
+      // Nomes de arquivo vindos direto do WhatsApp/câmera (ex: "WhatsApp Image
+      // 2026-08-19 at 09.38.35.jpeg") têm espaços e pontos que já foram
+      // observados quebrando o upload — geramos um nome seguro em vez de usar
+      // o original, o que também evita expor o nome do arquivo do dispositivo.
+      const extensionMatch = /\.([a-zA-Z0-9]+)$/.exec(file.name)
+      const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'jpg'
+      const safeName = `${crypto.randomUUID()}.${extension}`
+
+      const blob = await upload(safeName, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
+        abortSignal: AbortSignal.timeout(30_000),
       })
       onChange(blob.url)
     } catch {
