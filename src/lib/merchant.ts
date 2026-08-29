@@ -26,3 +26,10 @@ export async function getMenuItemsForOwner(businessId: string) {
     orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
   })
 }
+
+export async function getDeliveryZonesForOwner(businessId: string) {
+  return prisma.deliveryZone.findMany({
+    where: { businessId },
+    orderBy: { neighborhood: 'asc' },
+  })
+}
