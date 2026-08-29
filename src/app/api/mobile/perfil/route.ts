@@ -17,7 +17,10 @@ export async function GET(request: Request) {
 
 const putBodySchema = z.object({
   name: z.string().min(2, 'Informe o nome.'),
-  phone: z.string().min(8, 'Informe um telefone válido.'),
+  // Users created via Google sign-in have no phone at all. Allow an empty
+  // string here (cleared to null below) so editing just the name doesn't
+  // force a phone; a non-empty value still has to look like a real phone.
+  phone: z.string().min(8, 'Informe um telefone válido.').or(z.literal('')),
 })
 
 export async function PUT(request: Request) {
@@ -32,7 +35,7 @@ export async function PUT(request: Request) {
 
   await prisma.user.update({
     where: { id: auth.userId },
-    data: { name: parsed.data.name, phone: parsed.data.phone },
+    data: { name: parsed.data.name, phone: parsed.data.phone || null },
   })
 
   return NextResponse.json({ ok: true })

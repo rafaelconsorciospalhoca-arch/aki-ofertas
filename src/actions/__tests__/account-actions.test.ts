@@ -57,6 +57,22 @@ describe('updateMerchantAccount', () => {
       data: { name: 'Rafael Souza', email: 'rafael@example.com' },
     })
   })
+
+  it('normalizes the email to lowercase before checking for conflicts and updating', async () => {
+    vi.mocked(requireMerchantBusiness).mockResolvedValue(business as never)
+    vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+
+    const result = await updateMerchantAccount({ name: 'Rafael Souza', email: 'Rafael@Example.com' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { email: 'rafael@example.com', NOT: { id: 'user-1' } },
+    })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { name: 'Rafael Souza', email: 'rafael@example.com' },
+    })
+  })
 })
 
 describe('changeMerchantPassword', () => {

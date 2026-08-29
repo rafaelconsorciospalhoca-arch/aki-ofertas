@@ -241,8 +241,12 @@ export async function updateUser(
     return { ok: false, error: 'Usuário não encontrado.' }
   }
 
+  // User.email is a case-sensitive unique column; normalizing keeps a single
+  // account per address across this form and the passwordless mobile flows.
+  const email = parsed.data.email.trim().toLowerCase()
+
   const conflict = await prisma.user.findFirst({
-    where: { email: parsed.data.email, NOT: { id: userId } },
+    where: { email, NOT: { id: userId } },
   })
   if (conflict) {
     return { ok: false, error: 'Este e-mail já está cadastrado.' }
@@ -252,7 +256,7 @@ export async function updateUser(
     where: { id: userId },
     data: {
       name: parsed.data.name,
-      email: parsed.data.email,
+      email,
       phone: parsed.data.phone || null,
       city: parsed.data.city || null,
       state: parsed.data.state || null,

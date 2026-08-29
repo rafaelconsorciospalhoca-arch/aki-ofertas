@@ -226,6 +226,19 @@ describe('PUT /api/mobile/perfil', () => {
       data: { name: 'Maria Silva', phone: '5546999990000' },
     })
   })
+
+  it('accepts an empty phone and clears it to null (e.g. Google sign-in users with no phone)', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await putPerfil(request({ name: 'Maria Silva', phone: '' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { name: 'Maria Silva', phone: null },
+    })
+  })
 })
 
 describe('POST /api/mobile/perfil/telefone', () => {

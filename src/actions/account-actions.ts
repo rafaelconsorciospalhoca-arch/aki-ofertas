@@ -25,8 +25,12 @@ export async function updateMerchantAccount(input: AccountInput): Promise<Accoun
     return { ok: false, error: parsed.error.issues[0].message }
   }
 
+  // User.email is a case-sensitive unique column; normalizing keeps a single
+  // account per address across this form and the passwordless mobile flows.
+  const email = parsed.data.email.trim().toLowerCase()
+
   const conflict = await prisma.user.findFirst({
-    where: { email: parsed.data.email, NOT: { id: business.ownerId } },
+    where: { email, NOT: { id: business.ownerId } },
   })
   if (conflict) {
     return { ok: false, error: 'Este e-mail já está cadastrado.' }
@@ -34,7 +38,7 @@ export async function updateMerchantAccount(input: AccountInput): Promise<Accoun
 
   await prisma.user.update({
     where: { id: business.ownerId },
-    data: { name: parsed.data.name, email: parsed.data.email },
+    data: { name: parsed.data.name, email },
   })
 
   return { ok: true }

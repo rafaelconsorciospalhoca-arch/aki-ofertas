@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { useProfile, useUpdateProfile } from '@/api/hooks/useProfile'
+import { ApiError } from '@/api/client'
 
 export default function PerfilScreen() {
   const { token, logout } = useAuth()
@@ -46,8 +47,8 @@ export default function PerfilScreen() {
     try {
       await updateProfile.mutateAsync({ name, phone })
       setEditing(false)
-    } catch {
-      setError('Não foi possível salvar. Tente novamente.')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar. Tente novamente.')
     }
   }
 

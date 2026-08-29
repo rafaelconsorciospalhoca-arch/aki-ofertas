@@ -456,6 +456,27 @@ describe('updateUser', () => {
     expect(result).toEqual({ ok: false, error: 'Este e-mail já está cadastrado.' })
     expect(prisma.user.update).not.toHaveBeenCalled()
   })
+
+  it('normalizes the email to lowercase before checking for conflicts and updating', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({
+      'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false },
+      'user-2': { id: 'user-2' },
+    })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-2' } as never)
+
+    const result = await updateUser('user-2', { ...validUserInput, email: 'Rafael@Example.com' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { email: 'rafael@example.com', NOT: { id: 'user-2' } },
+    })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+      data: { name: 'Rafael Souza', email: 'rafael@example.com', phone: '5546999997777', city: 'Marmeleiro', state: 'PR' },
+    })
+  })
 })
 
 const validPlanInput = { name: 'Turbo', priceReais: '199.90', maxOffersPerMonth: '30', hasFlashOffers: true, hasFullMetrics: true }
