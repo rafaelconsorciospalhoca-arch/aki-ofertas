@@ -77,6 +77,7 @@ export type Profile = {
   name: string
   email: string
   city: string | null
+  phone: string | null
 }
 
 export type BusinessSummary = {

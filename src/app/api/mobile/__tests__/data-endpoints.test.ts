@@ -8,7 +8,7 @@ import { GET as getLoja } from '@/app/api/mobile/lojas/[slug]/route'
 import { GET as getLojasSearch } from '@/app/api/mobile/lojas/route'
 import { GET as getCategorias } from '@/app/api/mobile/categorias/route'
 import { GET as getCidades } from '@/app/api/mobile/cidades/route'
-import { GET as getPerfil } from '@/app/api/mobile/perfil/route'
+import { GET as getPerfil, PUT as putPerfil } from '@/app/api/mobile/perfil/route'
 import { POST as postTelefone } from '@/app/api/mobile/perfil/telefone/route'
 import { getFeaturedOffers, getOffersList, getOfferBySlug } from '@/lib/offers'
 import { getBusinessBySlug, searchBusinesses } from '@/lib/businesses'
@@ -176,6 +176,54 @@ describe('GET /api/mobile/perfil', () => {
     expect(await response.json()).toEqual({
       ok: true,
       data: { id: 'user-1', name: 'Maria', email: 'user@example.com', city: 'Marmeleiro', phone: '5546999990000' },
+    })
+  })
+})
+
+describe('PUT /api/mobile/perfil', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  function request(body: unknown) {
+    return new Request('https://example.com/api/mobile/perfil', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  }
+
+  it('returns the 401 from requireMobileUser when unauthenticated', async () => {
+    const unauthorized = NextResponse.json({ ok: false, error: 'Sessão expirada.' }, { status: 401 })
+    vi.mocked(requireMobileUser).mockResolvedValue(unauthorized)
+
+    const response = await putPerfil(request({ name: 'Maria', phone: '5546999990000' }))
+    expect(response.status).toBe(401)
+  })
+
+  it('rejects an invalid name', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await putPerfil(request({ name: 'M', phone: '5546999990000' }))
+    expect(response.status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid phone', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await putPerfil(request({ name: 'Maria', phone: '123' }))
+    expect(response.status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  it('updates the name and phone for the authenticated user', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await putPerfil(request({ name: 'Maria Silva', phone: '5546999990000' }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true })
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { name: 'Maria Silva', phone: '5546999990000' },
     })
   })
 })
