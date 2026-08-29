@@ -21,6 +21,13 @@ describe('upsertDeliveryZone', () => {
     expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
   })
 
+  it('rejects an all-whitespace neighborhood instead of silently trimming it', async () => {
+    vi.mocked(requireMerchantBusiness).mockResolvedValue(business as never)
+    const result = await upsertDeliveryZone({ neighborhood: '  ', feeCents: '5.00' })
+    expect(result).toEqual({ ok: false, error: 'Informe o nome do bairro.' })
+    expect(prisma.deliveryZone.upsert).not.toHaveBeenCalled()
+  })
+
   it('rejects an invalid fee', async () => {
     vi.mocked(requireMerchantBusiness).mockResolvedValue(business as never)
     const result = await upsertDeliveryZone({ neighborhood: 'Centro', feeCents: 'abc' })

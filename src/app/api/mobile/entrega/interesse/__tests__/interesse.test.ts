@@ -36,6 +36,13 @@ describe('POST /api/mobile/entrega/interesse', () => {
     expect(response.status).toBe(400)
   })
 
+  it('rejects a neighborhood longer than 60 characters', async () => {
+    vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
+
+    const response = await POST(postRequest({ businessId: 'biz-1', neighborhood: 'a'.repeat(61) }))
+    expect(response.status).toBe(400)
+  })
+
   it('returns 404 when the business does not exist', async () => {
     vi.mocked(requireMobileUser).mockResolvedValue({ userId: 'user-1' })
     vi.mocked(prisma.business.findUnique).mockResolvedValue(null)

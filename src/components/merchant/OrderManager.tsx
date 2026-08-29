@@ -13,6 +13,7 @@ type Order = {
   address: string
   number: string | null
   neighborhood: string | null
+  deliveryFeeCents: number | null
   city: string
   state: string
   notes: string | null
@@ -140,6 +141,12 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-neutral-600">
             <p>Qtd: {order.quantity}</p>
             <p>Valor un.: R$ {centsToReais(order.discountPrice)}</p>
+            {order.deliveryFeeCents ? (
+              <p>Taxa de entrega: R$ {centsToReais(order.deliveryFeeCents)}</p>
+            ) : null}
+            <p className="font-bold">
+              Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0))}
+            </p>
             <p className="col-span-2">Telefone: {order.phone}</p>
             <p className="col-span-2">
               Endereço: {order.address}

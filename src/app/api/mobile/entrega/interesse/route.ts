@@ -6,7 +6,7 @@ import { sendDeliveryZoneRequestEmail } from '@/lib/email'
 
 const bodySchema = z.object({
   businessId: z.string().min(1),
-  neighborhood: z.string().min(2),
+  neighborhood: z.string().trim().min(2).max(60),
 })
 
 export async function POST(request: Request) {

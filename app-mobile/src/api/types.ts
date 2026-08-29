@@ -119,6 +119,7 @@ export type OrderRow = {
   address: string
   number: string | null
   neighborhood: string | null
+  deliveryFeeCents: number | null
   city: string
   state: string
   zip: string | null

@@ -1,5 +1,14 @@
 import { Resend } from 'resend'
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
@@ -72,12 +81,13 @@ export async function sendDeliveryZoneRequestEmail(
   data: { businessName: string; neighborhood: string },
 ): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY)
+  const safeNeighborhood = escapeHtml(data.neighborhood)
   const { error } = await resend.emails.send({
     from: 'Aki Ofertas <pedidos@akiofertas.com.br>',
     to,
     subject: `Um cliente quer entrega em "${data.neighborhood}"`,
     html: `
-      <p>Um cliente tentou pedir entrega para o bairro <strong>${data.neighborhood}</strong>, que ainda
+      <p>Um cliente tentou pedir entrega para o bairro <strong>${safeNeighborhood}</strong>, que ainda
       não está na sua lista de bairros atendidos em ${data.businessName}.</p>
       <p>Se quiser atender essa região, cadastre a taxa de entrega no painel:
       <a href="https://akiofertas.com.br/comerciante/entrega">akiofertas.com.br/comerciante/entrega</a>.</p>

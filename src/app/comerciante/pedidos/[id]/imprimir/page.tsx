@@ -47,7 +47,10 @@ export default async function ImprimirPedidoPage({ params }: { params: { id: str
         {order.quantity}x {order.offerTitle}
       </p>
       <p>Valor unitário: R$ {centsToReais(order.discountPrice)}</p>
-      <p className="font-bold">Total: R$ {centsToReais(order.discountPrice * order.quantity)}</p>
+      {order.deliveryFeeCents ? <p>Taxa de entrega: R$ {centsToReais(order.deliveryFeeCents)}</p> : null}
+      <p className="font-bold">
+        Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0))}
+      </p>
       {order.notes && (
         <>
           <hr className="my-3 border-dashed border-black" />

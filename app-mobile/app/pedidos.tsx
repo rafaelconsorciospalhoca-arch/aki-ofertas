@@ -2,6 +2,7 @@ import { View, Text, FlatList, StyleSheet } from 'react-native'
 import { Stack } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
+import { calculateOrderTotal } from '@/utils/orderTotal'
 import { useOrders } from '@/api/hooks/useOrders'
 import type { OrderStatus } from '@/api/types'
 
@@ -54,7 +55,8 @@ export default function PedidosScreen() {
             <Text style={[styles.status, { color: STATUS_COLOR[item.status] }]}>{STATUS_LABEL[item.status]}</Text>
           </View>
           <Text style={styles.meta}>
-            {item.quantity}x · {formatCents(item.discountPrice * item.quantity)}
+            {item.quantity}x ·{' '}
+            {formatCents(calculateOrderTotal(item.discountPrice * item.quantity, item.deliveryFeeCents))}
           </Text>
           <Text style={styles.meta}>
             {item.address}

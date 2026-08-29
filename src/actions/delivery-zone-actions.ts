@@ -7,7 +7,7 @@ import { reaisToCents } from '@/lib/money'
 
 const zoneSchema = z.object({
   id: z.string().optional(),
-  neighborhood: z.string().min(2, 'Informe o nome do bairro.'),
+  neighborhood: z.string().trim().min(2, 'Informe o nome do bairro.'),
   feeCents: z.string().min(1, 'Informe o valor da taxa.'),
 })
 
@@ -30,7 +30,7 @@ export async function upsertDeliveryZone(input: ZoneInput): Promise<ZoneResult> 
     return { ok: false, error: 'Informe um valor de taxa válido.' }
   }
 
-  const neighborhood = parsed.data.neighborhood.trim()
+  const neighborhood = parsed.data.neighborhood
 
   if (parsed.data.id) {
     const existing = await prisma.deliveryZone.findFirst({
