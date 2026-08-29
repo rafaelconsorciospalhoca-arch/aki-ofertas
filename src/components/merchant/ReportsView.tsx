@@ -64,7 +64,7 @@ export function ReportsView({ stats, coupons }: { stats: OfferCouponStats[]; cou
         {coupons.length === 0 ? (
           <p className="text-sm text-neutral-500">Nenhum cupom gerado ainda.</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
             <table className="w-full text-sm">
               <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                 <tr>
