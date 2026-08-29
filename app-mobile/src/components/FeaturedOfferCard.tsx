@@ -17,6 +17,9 @@ export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
         <View style={styles.tag}>
           <Text style={styles.tagText}>OFERTA ESPECIAL</Text>
         </View>
+        <View style={styles.discountBadge}>
+          <Text style={styles.discountText}>-{offer.discountPercent}%</Text>
+        </View>
       </View>
       <View style={styles.info}>
         <Text style={styles.price}>{formatCents(offer.discountPrice)}</Text>
@@ -46,8 +49,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  imageWrapper: { width: '100%', height: 140, backgroundColor: colors.neutral100 },
-  image: { width: '100%', height: '100%' },
+  imageWrapper: { width: '100%', height: 170, backgroundColor: colors.neutral100 },
+  image: { width: '100%', height: '100%', resizeMode: 'cover' },
   imagePlaceholder: { width: '100%', height: '100%', backgroundColor: colors.neutral100 },
   tag: {
     position: 'absolute',
@@ -59,6 +62,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tagText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  discountBadge: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    backgroundColor: colors.red,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountText: { color: colors.white, fontSize: 12, fontWeight: '800' },
   info: { padding: 12, gap: 2 },
   price: { fontSize: 20, fontWeight: '800', color: colors.green },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
