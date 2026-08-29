@@ -12,6 +12,7 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     offer: { findUnique: vi.fn() },
     order: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    deliveryZone: { findFirst: vi.fn() },
   },
 }))
 
@@ -44,6 +45,7 @@ const validInput = {
   quantity: 2,
   phone: '5546999990000',
   address: 'Rua das Flores, 10',
+  deliveryZoneId: 'zone-1',
   city: 'Marmeleiro',
   state: 'pr',
 }
@@ -55,6 +57,7 @@ const orderRowFixture = {
   address: 'Rua das Flores, 10',
   number: null,
   neighborhood: null,
+  deliveryFeeCents: 500,
   city: 'Marmeleiro',
   state: 'PR',
   zip: null,
@@ -112,6 +115,11 @@ describe('createOrderForUser', () => {
       startDate: new Date('2020-01-01'),
       endDate: new Date('2020-02-01'),
     } as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
 
     const result = await createOrderForUser('user-1', validInput)
     expect(result).toEqual({ ok: false, error: 'Oferta não encontrada.' })
@@ -119,6 +127,11 @@ describe('createOrderForUser', () => {
 
   it('creates the order, uppercasing the state', async () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
     vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
 
     const result = await createOrderForUser('user-1', validInput)
@@ -133,7 +146,8 @@ describe('createOrderForUser', () => {
         phone: '5546999990000',
         address: 'Rua das Flores, 10',
         number: null,
-        neighborhood: null,
+        neighborhood: 'Centro',
+        deliveryFeeCents: 500,
         city: 'Marmeleiro',
         state: 'PR',
         zip: null,
@@ -143,10 +157,24 @@ describe('createOrderForUser', () => {
     })
   })
 
+  it('rejects when the delivery zone is not found or inactive for this business', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue(null)
+
+    const result = await createOrderForUser('user-1', validInput)
+    expect(result).toEqual({ ok: false, error: 'Bairro inválido ou indisponível.' })
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
   it('notifies the business by email using the business email over the owner email', async () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue({
       ...activeOffer,
       business: { ...activeOffer.business, email: 'contato@bigburger.com' },
+    } as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
     } as never)
     vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
     const { sendNewOrderEmail } = await import('@/lib/email')
@@ -164,6 +192,11 @@ describe('createOrderForUser', () => {
 
   it('falls back to the owner email when the business has none', async () => {
     vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
     vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
     const { sendNewOrderEmail } = await import('@/lib/email')
 
@@ -189,6 +222,7 @@ describe('getOrdersForUser', () => {
         address: 'Rua das Flores, 10',
         number: null,
         neighborhood: null,
+        deliveryFeeCents: 500,
         city: 'Marmeleiro',
         state: 'PR',
         zip: null,

@@ -19,6 +19,7 @@ const validBody = {
   quantity: 2,
   phone: '5546999990000',
   address: 'Rua das Flores, 10',
+  deliveryZoneId: 'zone-1',
   city: 'Marmeleiro',
   state: 'PR',
 }

@@ -9,6 +9,7 @@ export type OrderRow = {
   address: string
   number: string | null
   neighborhood: string | null
+  deliveryFeeCents: number | null
   city: string
   state: string
   zip: string | null
@@ -38,6 +39,7 @@ function toOrderRow(row: {
   address: string
   number: string | null
   neighborhood: string | null
+  deliveryFeeCents: number | null
   city: string
   state: string
   zip: string | null
@@ -57,6 +59,7 @@ function toOrderRow(row: {
     address: row.address,
     number: row.number,
     neighborhood: row.neighborhood,
+    deliveryFeeCents: row.deliveryFeeCents,
     city: row.city,
     state: row.state,
     zip: row.zip,
@@ -106,7 +109,7 @@ export type CreateOrderInput = {
   phone: string
   address: string
   number?: string
-  neighborhood?: string
+  deliveryZoneId: string
   city: string
   state: string
   zip?: string
@@ -117,6 +120,7 @@ export type CreateOrderResult = { ok: true; orderId: string } | { ok: false; err
 
 const OFFER_NOT_AVAILABLE = 'Oferta não encontrada.'
 const DELIVERY_NOT_AVAILABLE = 'Esta oferta não aceita entrega.'
+const ZONE_NOT_AVAILABLE = 'Bairro inválido ou indisponível.'
 
 export async function createOrderForUser(userId: string, input: CreateOrderInput): Promise<CreateOrderResult> {
   const offer = await prisma.offer.findUnique({
@@ -143,6 +147,14 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
   if (!offer.deliveryEnabled) {
     return { ok: false, error: DELIVERY_NOT_AVAILABLE }
   }
+
+  const zone = await prisma.deliveryZone.findFirst({
+    where: { id: input.deliveryZoneId, businessId: offer.business.id, active: true },
+  })
+  if (!zone) {
+    return { ok: false, error: ZONE_NOT_AVAILABLE }
+  }
+
   const now = new Date()
   if (offer.startDate > now || offer.endDate < now) {
     return { ok: false, error: OFFER_NOT_AVAILABLE }
@@ -157,7 +169,8 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
       phone: input.phone,
       address: input.address,
       number: input.number || null,
-      neighborhood: input.neighborhood || null,
+      neighborhood: zone.neighborhood,
+      deliveryFeeCents: zone.feeCents,
       city: input.city,
       state: input.state.toUpperCase(),
       zip: input.zip || null,

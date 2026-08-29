@@ -17,7 +17,7 @@ const bodySchema = z.object({
   phone: z.string().min(8),
   address: z.string().min(3),
   number: z.string().optional(),
-  neighborhood: z.string().optional(),
+  deliveryZoneId: z.string().min(1),
   city: z.string().min(2),
   state: z.string().length(2),
   zip: z.string().optional(),
