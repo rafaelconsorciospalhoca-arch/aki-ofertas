@@ -46,9 +46,31 @@ export function OfferForm({
   )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [pricingMode, setPricingMode] = useState<'price' | 'percent'>('price')
+  const [discountPercent, setDiscountPercent] = useState('')
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function computeDiscountPrice(originalPrice: string, percent: string) {
+    const original = Number(originalPrice)
+    const pct = Number(percent)
+    if (original > 0 && pct >= 0 && pct <= 100) {
+      update('discountPrice', (original * (1 - pct / 100)).toFixed(2))
+    }
+  }
+
+  function handleOriginalPriceChange(value: string) {
+    update('originalPrice', value)
+    if (pricingMode === 'percent') {
+      computeDiscountPrice(value, discountPercent)
+    }
+  }
+
+  function handleDiscountPercentChange(value: string) {
+    setDiscountPercent(value)
+    computeDiscountPrice(values.originalPrice, value)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,31 +120,88 @@ export function OfferForm({
         onChange={(url) => update('imageUrl', url)}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-          Preço original (R$)
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={values.originalPrice}
-            onChange={(e) => update('originalPrice', e.target.value)}
-            className={inputClass}
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-          Preço promocional (R$)
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={values.discountPrice}
-            onChange={(e) => update('discountPrice', e.target.value)}
-            className={inputClass}
-            required
-          />
-        </label>
+      <div>
+        <div className="mb-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPricingMode('price')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+              pricingMode === 'price' ? 'bg-brand-green text-white' : 'border border-neutral-300 text-neutral-600'
+            }`}
+          >
+            Por preço
+          </button>
+          <button
+            type="button"
+            onClick={() => setPricingMode('percent')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+              pricingMode === 'percent' ? 'bg-brand-green text-white' : 'border border-neutral-300 text-neutral-600'
+            }`}
+          >
+            Por porcentagem
+          </button>
+        </div>
+
+        {pricingMode === 'price' ? (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+              Preço original (R$)
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={values.originalPrice}
+                onChange={(e) => update('originalPrice', e.target.value)}
+                className={inputClass}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+              Preço promocional (R$)
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={values.discountPrice}
+                onChange={(e) => update('discountPrice', e.target.value)}
+                className={inputClass}
+                required
+              />
+            </label>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+              Preço original (R$)
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={values.originalPrice}
+                onChange={(e) => handleOriginalPriceChange(e.target.value)}
+                className={inputClass}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+              Desconto (%)
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={discountPercent}
+                onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                className={inputClass}
+                required
+              />
+            </label>
+          </div>
+        )}
+
+        {pricingMode === 'percent' && values.discountPrice && (
+          <p className="mt-1 text-xs text-neutral-500">Preço promocional calculado: R$ {values.discountPrice}</p>
+        )}
       </div>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
