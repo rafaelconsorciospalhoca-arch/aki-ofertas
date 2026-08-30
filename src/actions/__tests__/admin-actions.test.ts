@@ -173,6 +173,16 @@ describe('updateBusinessCommissionOverride', () => {
     expect(result).toEqual({ ok: false, error: 'Percentual de comissão inválido.' })
   })
 
+  it('rejects a forced percent of 0 (use FORCE_NONE for no commission instead)', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'FORCE_PERCENT', percent: '0' })
+    expect(result).toEqual({ ok: false, error: 'Percentual de comissão inválido.' })
+    expect(prisma.business.update).not.toHaveBeenCalled()
+  })
+
   it('clears the override when set back to the category default', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
     vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)

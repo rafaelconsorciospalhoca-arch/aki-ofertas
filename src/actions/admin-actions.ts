@@ -89,7 +89,7 @@ export async function updateBusinessCommissionOverride(
   }
 
   const percent = Number(parsed.data.percent)
-  if (!parsed.data.percent || !Number.isInteger(percent) || percent < 0 || percent > 100) {
+  if (!parsed.data.percent || !Number.isInteger(percent) || percent < 1 || percent > 100) {
     return { ok: false, error: 'Percentual de comissão inválido.' }
   }
 

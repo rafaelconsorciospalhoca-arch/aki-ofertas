@@ -34,6 +34,15 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
   for (const business of businesses) {
     const percent = getEffectiveCommissionPercent(business)
     if (percent === null) {
+      // A dangling ACCUMULATING row from before this business became exempt must be closed out:
+      // otherwise a later re-enable would resume it via the findFirst below, using its stale
+      // weekStart as periodStart and sweeping the entire exempt period into one retroactive charge.
+      const dangling = await prisma.commissionInvoice.findFirst({
+        where: { businessId: business.id, status: 'ACCUMULATING' },
+      })
+      if (dangling) {
+        await prisma.commissionInvoice.delete({ where: { id: dangling.id } })
+      }
       skipped++
       continue
     }

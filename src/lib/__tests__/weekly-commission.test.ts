@@ -313,6 +313,41 @@ describe('generateWeeklyCommissionInvoices', () => {
     })
   })
 
+  it('deletes a dangling ACCUMULATING row when the business becomes exempt (regression)', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      { ...commissionBusiness, commissionOverrideEnabled: true, commissionOverridePercent: null },
+    ] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
+      id: 'invoice-stale',
+      status: 'ACCUMULATING',
+      weekStart: new Date('2026-06-01T00:00:00Z'),
+      weekEnd: new Date('2026-06-08T00:00:00Z'),
+    } as never)
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
+    expect(prisma.commissionInvoice.delete).toHaveBeenCalledWith({ where: { id: 'invoice-stale' } })
+    expect(prisma.order.findMany).not.toHaveBeenCalled()
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+    expect(createAsaasCharge).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.update).not.toHaveBeenCalled()
+  })
+
+  it('does nothing extra for an exempt business with no dangling ACCUMULATING row', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      { ...commissionBusiness, commissionOverrideEnabled: true, commissionOverridePercent: null },
+    ] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
+    expect(prisma.commissionInvoice.delete).not.toHaveBeenCalled()
+    expect(prisma.order.findMany).not.toHaveBeenCalled()
+  })
+
   it('uses a business-level override percent instead of the category default', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([
       { ...commissionBusiness, commissionOverrideEnabled: true, commissionOverridePercent: 20 },
