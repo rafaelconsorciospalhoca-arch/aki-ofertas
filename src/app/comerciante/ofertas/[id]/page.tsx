@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getActiveCategories } from '@/lib/categories'
-import { getBusinessForOwner, getOfferForOwner } from '@/lib/merchant'
+import { getBusinessForOwner, getOfferForOwner, getOfferOptionGroupsForOwner } from '@/lib/merchant'
 import { centsToReais } from '@/lib/money'
 import { OfferForm } from '@/components/merchant/OfferForm'
+import { OfferOptionsManager } from '@/components/merchant/OfferOptionsManager'
 
 function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10)
@@ -22,6 +23,7 @@ export default async function EditarOfertaPage({ params }: { params: { id: strin
   }
 
   const categories = await getActiveCategories()
+  const optionGroups = await getOfferOptionGroupsForOwner(offer.id)
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,6 +45,7 @@ export default async function EditarOfertaPage({ params }: { params: { id: strin
           customCouponCode: offer.customCouponCode ?? '',
         }}
       />
+      <OfferOptionsManager offerId={offer.id} groups={optionGroups} />
     </div>
   )
 }

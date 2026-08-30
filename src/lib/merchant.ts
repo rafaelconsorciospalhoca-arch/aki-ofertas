@@ -33,3 +33,11 @@ export async function getDeliveryZonesForOwner(businessId: string) {
     orderBy: { neighborhood: 'asc' },
   })
 }
+
+export async function getOfferOptionGroupsForOwner(offerId: string) {
+  return prisma.offerOptionGroup.findMany({
+    where: { offerId },
+    include: { choices: { orderBy: [{ order: 'asc' }, { name: 'asc' }] } },
+    orderBy: [{ order: 'asc' }, { name: 'asc' }],
+  })
+}
