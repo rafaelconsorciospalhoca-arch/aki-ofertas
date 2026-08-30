@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/webhooks/asaas/route'
 import { getAppSettings } from '@/lib/app-settings'
-import { activateSubscription, suspendForPayment } from '@/lib/billing'
+import { activateSubscription, suspendForPayment, markCommissionInvoicePaid, markCommissionInvoiceOverdue } from '@/lib/billing'
 
 vi.mock('@/lib/app-settings', () => ({ getAppSettings: vi.fn() }))
-vi.mock('@/lib/billing', () => ({ activateSubscription: vi.fn(), suspendForPayment: vi.fn() }))
+vi.mock('@/lib/billing', () => ({
+  activateSubscription: vi.fn(),
+  suspendForPayment: vi.fn(),
+  markCommissionInvoicePaid: vi.fn(),
+  markCommissionInvoiceOverdue: vi.fn(),
+}))
 
 function request(body: unknown, token?: string) {
   return new Request('https://akiofertas.com.br/api/webhooks/asaas', {
@@ -73,6 +78,27 @@ describe('POST /api/webhooks/asaas', () => {
 
     expect(response.status).toBe(200)
     expect(activateSubscription).not.toHaveBeenCalled()
+    expect(suspendForPayment).not.toHaveBeenCalled()
+  })
+
+  it('marks a commission invoice paid on PAYMENT_CONFIRMED when there is no subscription id', async () => {
+    vi.mocked(getAppSettings).mockResolvedValue({ asaasWebhookToken: 'correct-token' } as never)
+
+    const response = await POST(
+      request({ event: 'PAYMENT_CONFIRMED', payment: { id: 'pay_1', externalReference: 'invoice-1' } }, 'correct-token'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(markCommissionInvoicePaid).toHaveBeenCalledWith('invoice-1')
+    expect(activateSubscription).not.toHaveBeenCalled()
+  })
+
+  it('marks a commission invoice overdue on PAYMENT_OVERDUE when there is no subscription id', async () => {
+    vi.mocked(getAppSettings).mockResolvedValue({ asaasWebhookToken: 'correct-token' } as never)
+
+    await POST(request({ event: 'PAYMENT_OVERDUE', payment: { id: 'pay_1', externalReference: 'invoice-1' } }, 'correct-token'))
+
+    expect(markCommissionInvoiceOverdue).toHaveBeenCalledWith('invoice-1')
     expect(suspendForPayment).not.toHaveBeenCalled()
   })
 })

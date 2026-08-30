@@ -35,3 +35,29 @@ export async function suspendForPayment(asaasSubscriptionId: string): Promise<vo
     data: { status: 'SUSPENDED', suspendedReason: 'PAYMENT_OVERDUE' },
   })
 }
+
+export async function markCommissionInvoicePaid(invoiceId: string): Promise<void> {
+  const invoice = await prisma.commissionInvoice.findUnique({ where: { id: invoiceId } })
+  if (!invoice) return
+
+  await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { status: 'PAID', paidAt: new Date() } })
+
+  const business = await prisma.business.findUnique({ where: { id: invoice.businessId } })
+  if (business?.suspendedReason === 'COMMISSION_OVERDUE') {
+    await prisma.business.update({ where: { id: invoice.businessId }, data: { status: 'ACTIVE', suspendedReason: null } })
+  }
+}
+
+export async function markCommissionInvoiceOverdue(invoiceId: string): Promise<void> {
+  const invoice = await prisma.commissionInvoice.findUnique({ where: { id: invoiceId } })
+  if (!invoice) return
+
+  const business = await prisma.business.findUnique({ where: { id: invoice.businessId } })
+  if (business?.suspendedReason === 'ADMIN') return
+
+  await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { status: 'OVERDUE' } })
+  await prisma.business.update({
+    where: { id: invoice.businessId },
+    data: { status: 'SUSPENDED', suspendedReason: 'COMMISSION_OVERDUE' },
+  })
+}
