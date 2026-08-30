@@ -11,6 +11,12 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('pt-BR')
 }
 
+function formatWeekEnd(date: Date): string {
+  const d = new Date(date)
+  d.setUTCDate(d.getUTCDate() - 1)
+  return formatDate(d)
+}
+
 function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
@@ -41,12 +47,16 @@ export function CommissionPanel({ percent, invoices }: { percent: number; invoic
               {invoices.map((invoice) => (
                 <tr key={invoice.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3 text-neutral-600">
-                    {formatDate(invoice.weekStart)} – {formatDate(invoice.weekEnd)}
+                    {formatDate(invoice.weekStart)} – {formatWeekEnd(invoice.weekEnd)}
                   </td>
                   <td className="px-4 py-3 text-neutral-600">{formatCents(invoice.salesCents)}</td>
                   <td className="px-4 py-3 font-medium text-neutral-900">{formatCents(invoice.feeCents)}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_COLOR[invoice.status]}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        STATUS_COLOR[invoice.status] ?? 'bg-neutral-100 text-neutral-500'
+                      }`}
+                    >
                       {STATUS_LABEL[invoice.status] ?? invoice.status}
                     </span>
                   </td>
