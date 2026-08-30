@@ -104,7 +104,9 @@ describe('suspendForPayment', () => {
 
   it('suspends the business for payment when the subscription is found', async () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
-    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: null } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', suspendedReason: null, category: { commissionPercent: null },
+    } as never)
 
     await suspendForPayment('sub_123')
 
@@ -117,7 +119,20 @@ describe('suspendForPayment', () => {
 
   it('never overrides an admin-imposed suspension', async () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
-    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: 'ADMIN' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', suspendedReason: 'ADMIN', category: { commissionPercent: null },
+    } as never)
+
+    await suspendForPayment('sub_123')
+
+    expect(prisma.business.update).not.toHaveBeenCalled()
+  })
+
+  it('never suspends a business whose category has commission billing enabled', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', suspendedReason: null, category: { commissionPercent: 10 },
+    } as never)
 
     await suspendForPayment('sub_123')
 
@@ -190,6 +205,15 @@ describe('markCommissionInvoiceOverdue', () => {
   it('never overrides an admin-imposed suspension', async () => {
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue({ id: 'invoice-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: 'ADMIN' } as never)
+
+    await markCommissionInvoiceOverdue('invoice-1')
+
+    expect(prisma.business.update).not.toHaveBeenCalled()
+  })
+
+  it('never overrides an unrelated payment-overdue suspension', async () => {
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue({ id: 'invoice-1', businessId: 'biz-1' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', suspendedReason: 'PAYMENT_OVERDUE' } as never)
 
     await markCommissionInvoiceOverdue('invoice-1')
 

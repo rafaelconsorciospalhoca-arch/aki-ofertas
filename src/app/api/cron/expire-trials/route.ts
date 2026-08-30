@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const expired = await prisma.business.findMany({
-    where: { status: 'ACTIVE', trialEndsAt: { lt: new Date() } },
+    where: { status: 'ACTIVE', trialEndsAt: { lt: new Date() }, category: { commissionPercent: null } },
     include: { subscriptions: { where: { status: 'ACTIVE' } } },
   })
   const toSuspend = expired.filter((b) => b.subscriptions.length === 0)

@@ -26,8 +26,12 @@ export async function suspendForPayment(asaasSubscriptionId: string): Promise<vo
   const subscription = await prisma.subscription.findFirst({ where: { asaasSubscriptionId } })
   if (!subscription) return
 
-  const business = await prisma.business.findUnique({ where: { id: subscription.businessId } })
+  const business = await prisma.business.findUnique({
+    where: { id: subscription.businessId },
+    include: { category: true },
+  })
   if (business?.suspendedReason === 'ADMIN') return
+  if (business && business.category.commissionPercent !== null) return
 
   await prisma.subscription.update({ where: { id: subscription.id }, data: { status: 'INACTIVE' } })
   await prisma.business.update({
@@ -53,7 +57,7 @@ export async function markCommissionInvoiceOverdue(invoiceId: string): Promise<v
   if (!invoice) return
 
   const business = await prisma.business.findUnique({ where: { id: invoice.businessId } })
-  if (business?.suspendedReason === 'ADMIN') return
+  if (business?.suspendedReason && business.suspendedReason !== 'COMMISSION_OVERDUE') return
 
   await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { status: 'OVERDUE' } })
   await prisma.business.update({

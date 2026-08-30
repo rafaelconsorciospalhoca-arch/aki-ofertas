@@ -49,7 +49,9 @@ describe('GET /api/cron/expire-trials', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ suspended: 1 })
     expect(prisma.business.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'ACTIVE', trialEndsAt: { lt: expect.any(Date) } } }),
+      expect.objectContaining({
+        where: { status: 'ACTIVE', trialEndsAt: { lt: expect.any(Date) }, category: { commissionPercent: null } },
+      }),
     )
     expect(prisma.business.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['biz-1'] } },
