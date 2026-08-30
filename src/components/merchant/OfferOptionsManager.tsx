@@ -89,6 +89,8 @@ export function OfferOptionsManager({ offerId, groups }: { offerId: string; grou
         )}
       </div>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       {showGroupForm && (
         <form onSubmit={handleAddGroup} className="flex max-w-sm flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4">
           <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
@@ -106,7 +108,6 @@ export function OfferOptionsManager({ offerId, groups }: { offerId: string; grou
             <input type="checkbox" checked={groupRequired} onChange={(e) => setGroupRequired(e.target.checked)} />
             Obrigatório
           </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3">
             <button
               type="submit"
@@ -162,6 +163,9 @@ export function OfferOptionsManager({ offerId, groups }: { offerId: string; grou
                 className={`${inputClass} flex-1`}
               />
               <input
+                type="number"
+                step="0.01"
+                min="0"
                 placeholder="Preço extra (R$)"
                 value={choiceForms[group.id]?.price ?? ''}
                 onChange={(e) => updateChoiceForm(group.id, 'price', e.target.value)}
