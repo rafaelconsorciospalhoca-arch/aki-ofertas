@@ -362,6 +362,7 @@ describe('getOfferBySlug', () => {
       imageUrl: null, originalPrice: 4290, discountPrice: 2990, discountPercent: 30,
       quantityAvailable: null, startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
       business: { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE', owner: { blocked: false }, deliveryZones: [] },
+      optionGroups: [],
     } as never)
 
     const result = await getOfferBySlug('combo-burguer')
@@ -383,11 +384,42 @@ describe('getOfferBySlug', () => {
         id: 'biz-1', name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE', owner: { blocked: false },
         deliveryZones: [{ id: 'zone-1', neighborhood: 'Centro', feeCents: 500, active: true }],
       },
+      optionGroups: [],
     } as never)
 
     const result = await getOfferBySlug('combo-burguer')
 
     expect(result?.deliveryZones).toEqual([{ id: 'zone-1', neighborhood: 'Centro', feeCents: 500 }])
     expect(result?.business.id).toBe('biz-1')
+  })
+
+  it('includes option groups with their choices, mapped correctly', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue({
+      id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', description: 'Pão, carne e queijo.',
+      imageUrl: null, originalPrice: 4290, discountPrice: 2990, discountPercent: 30,
+      quantityAvailable: null, startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
+      business: { id: 'biz-1', name: 'Big Burger', slug: 'big-burger', whatsapp: '5546999990000', city: 'Marmeleiro', state: 'PR', status: 'ACTIVE', owner: { blocked: false }, deliveryZones: [] },
+      optionGroups: [
+        {
+          id: 'group-1',
+          name: 'Sabor',
+          type: 'SINGLE',
+          required: true,
+          choices: [{ id: 'choice-1', name: 'Calabresa', extraPriceCents: 0 }],
+        },
+      ],
+    } as never)
+
+    const result = await getOfferBySlug('combo-burguer')
+
+    expect(result?.optionGroups).toEqual([
+      {
+        id: 'group-1',
+        name: 'Sabor',
+        type: 'SINGLE',
+        required: true,
+        choices: [{ id: 'choice-1', name: 'Calabresa', extraPriceCents: 0 }],
+      },
+    ])
   })
 })

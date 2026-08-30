@@ -149,6 +149,13 @@ export type OfferDetail = {
   endDate: Date
   deliveryEnabled: boolean
   deliveryZones: { id: string; neighborhood: string; feeCents: number }[]
+  optionGroups: {
+    id: string
+    name: string
+    type: 'SINGLE' | 'MULTIPLE'
+    required: boolean
+    choices: { id: string; name: string; extraPriceCents: number }[]
+  }[]
   business: {
     id: string
     name: string
@@ -168,6 +175,10 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
           owner: { select: { blocked: true } },
           deliveryZones: { where: { active: true }, orderBy: { neighborhood: 'asc' } },
         },
+      },
+      optionGroups: {
+        include: { choices: { orderBy: [{ order: 'asc' }, { name: 'asc' }] } },
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
       },
     },
   })
@@ -195,6 +206,17 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
       id: zone.id,
       neighborhood: zone.neighborhood,
       feeCents: zone.feeCents,
+    })),
+    optionGroups: row.optionGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      type: group.type,
+      required: group.required,
+      choices: group.choices.map((choice) => ({
+        id: choice.id,
+        name: choice.name,
+        extraPriceCents: choice.extraPriceCents,
+      })),
     })),
     business: {
       id: row.business.id,
