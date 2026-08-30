@@ -114,6 +114,7 @@ export type CreateOrderInput = {
   state: string
   zip?: string
   notes?: string
+  selectedChoiceIds?: string[]
 }
 
 export type CreateOrderResult = { ok: true; orderId: string } | { ok: false; error: string }
@@ -135,6 +136,7 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
           owner: { select: { blocked: true, email: true } },
         },
       },
+      optionGroups: { include: { choices: true } },
     },
   })
 
@@ -154,6 +156,32 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
   if (!zone) {
     return { ok: false, error: ZONE_NOT_AVAILABLE }
   }
+
+  const selectedChoiceIds = input.selectedChoiceIds ?? []
+  const allChoices = offer.optionGroups.flatMap((group) => group.choices)
+  const validChoiceIds = new Set(allChoices.map((choice) => choice.id))
+  if (selectedChoiceIds.some((id) => !validChoiceIds.has(id))) {
+    return { ok: false, error: 'Opção inválida.' }
+  }
+
+  let optionsFeeCents = 0
+  const summaryParts: string[] = []
+  for (const group of offer.optionGroups) {
+    const selectedInGroup = group.choices.filter((choice) => selectedChoiceIds.includes(choice.id))
+
+    if (group.required && selectedInGroup.length === 0) {
+      return { ok: false, error: `Escolha uma opção para ${group.name}.` }
+    }
+    if (group.type === 'SINGLE' && selectedInGroup.length > 1) {
+      return { ok: false, error: `Escolha apenas uma opção para ${group.name}.` }
+    }
+    if (selectedInGroup.length > 0) {
+      optionsFeeCents += selectedInGroup.reduce((sum, choice) => sum + choice.extraPriceCents, 0)
+      summaryParts.push(`${group.name}: ${selectedInGroup.map((choice) => choice.name).join(', ')}`)
+    }
+  }
+  optionsFeeCents *= input.quantity
+  const selectedOptionsSummary = summaryParts.length > 0 ? summaryParts.join(' · ') : null
 
   const now = new Date()
   if (offer.startDate > now || offer.endDate < now) {
@@ -175,6 +203,8 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
       state: input.state.toUpperCase(),
       zip: input.zip || null,
       notes: input.notes || null,
+      selectedOptions: selectedOptionsSummary,
+      optionsFeeCents: offer.optionGroups.length > 0 ? optionsFeeCents : null,
     },
     include: { user: { select: { name: true } } },
   })

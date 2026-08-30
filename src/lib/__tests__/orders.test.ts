@@ -38,6 +38,7 @@ const activeOffer = {
     email: null,
     owner: { blocked: false, email: 'dono@bigburger.com' },
   },
+  optionGroups: [],
 }
 
 const validInput = {
@@ -152,6 +153,8 @@ describe('createOrderForUser', () => {
         state: 'PR',
         zip: null,
         notes: null,
+        selectedOptions: null,
+        optionsFeeCents: null,
       },
       include: { user: { select: { name: true } } },
     })
@@ -203,6 +206,79 @@ describe('createOrderForUser', () => {
     await createOrderForUser('user-1', validInput)
 
     expect(sendNewOrderEmail).toHaveBeenCalledWith('dono@bigburger.com', expect.anything())
+  })
+
+  const offerWithOptions = {
+    ...activeOffer,
+    optionGroups: [
+      {
+        id: 'group-1',
+        name: 'Sabor',
+        type: 'SINGLE',
+        required: true,
+        choices: [
+          { id: 'choice-1', name: 'Calabresa', extraPriceCents: 0 },
+          { id: 'choice-2', name: 'Portuguesa', extraPriceCents: 0 },
+        ],
+      },
+      {
+        id: 'group-2',
+        name: 'Adicionais',
+        type: 'MULTIPLE',
+        required: false,
+        choices: [
+          { id: 'choice-3', name: 'Bacon', extraPriceCents: 300 },
+          { id: 'choice-4', name: 'Cheddar', extraPriceCents: 200 },
+        ],
+      },
+    ],
+  }
+
+  it('rejects when a required option group has no selection', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(offerWithOptions as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({ id: 'zone-1', neighborhood: 'Centro', feeCents: 500 } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, selectedChoiceIds: [] })
+    expect(result).toEqual({ ok: false, error: 'Escolha uma opção para Sabor.' })
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects when a single-choice group has more than one selection', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(offerWithOptions as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({ id: 'zone-1', neighborhood: 'Centro', feeCents: 500 } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, selectedChoiceIds: ['choice-1', 'choice-2'] })
+    expect(result).toEqual({ ok: false, error: 'Escolha apenas uma opção para Sabor.' })
+  })
+
+  it('rejects a choice id that does not belong to this offer', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(offerWithOptions as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({ id: 'zone-1', neighborhood: 'Centro', feeCents: 500 } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, selectedChoiceIds: ['choice-from-another-offer'] })
+    expect(result).toEqual({ ok: false, error: 'Opção inválida.' })
+  })
+
+  it('computes the options fee multiplied by quantity and the summary text', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(offerWithOptions as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({ id: 'zone-1', neighborhood: 'Centro', feeCents: 500 } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+
+    const result = await createOrderForUser('user-1', {
+      ...validInput,
+      quantity: 2,
+      selectedChoiceIds: ['choice-1', 'choice-3', 'choice-4'],
+    })
+
+    expect(result).toEqual({ ok: true, orderId: 'order-1' })
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          selectedOptions: 'Sabor: Calabresa · Adicionais: Bacon, Cheddar',
+          optionsFeeCents: 1000,
+        }),
+      }),
+    )
   })
 })
 

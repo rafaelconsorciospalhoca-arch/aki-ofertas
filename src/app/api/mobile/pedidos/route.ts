@@ -22,6 +22,7 @@ const bodySchema = z.object({
   state: z.string().length(2),
   zip: z.string().optional(),
   notes: z.string().optional(),
+  selectedChoiceIds: z.array(z.string()).optional(),
 })
 
 export async function POST(request: Request) {
