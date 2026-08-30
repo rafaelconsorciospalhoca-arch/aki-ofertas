@@ -55,8 +55,12 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
     // An ACCUMULATING row is a durable marker for a period whose commission has not yet
     // reached the minimum. While it exists we keep its ORIGINAL weekStart so the uninvoiced
     // sales are carried forward instead of being silently discarded each run.
+    // Without an active marker the period is always THIS week. In uninterrupted weekly billing
+    // the last real invoice's weekEnd already equals this week's weekStart, so this is the same
+    // value; they only diverge after a GAP (exemption, suspension, a business approved mid-gap),
+    // and in every gap case we bill fresh from this week rather than backfilling the whole gap.
     const accumulatingId = lastInvoice?.status === 'ACCUMULATING' ? lastInvoice.id : null
-    const periodStart = accumulatingId ? lastInvoice!.weekStart : (lastInvoice?.weekEnd ?? weekStart)
+    const periodStart = accumulatingId ? lastInvoice!.weekStart : weekStart
 
     if (!accumulatingId) {
       const existing = await prisma.commissionInvoice.findUnique({

@@ -108,13 +108,13 @@ describe('generateWeeklyCommissionInvoices', () => {
     })
   })
 
-  it('accumulates from the last invoice weekEnd when the new period crosses the minimum', async () => {
+  it('bills a normal week starting at this week\'s own Monday when the last invoice was one week ago (contiguous, no gap)', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
     vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
       id: 'invoice-old',
       status: 'PAID',
-      weekStart: new Date('2026-08-10T00:00:00Z'),
-      weekEnd: new Date('2026-08-17T00:00:00Z'),
+      weekStart: new Date('2026-08-17T00:00:00Z'),
+      weekEnd: new Date('2026-08-24T00:00:00Z'),
     } as never)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
@@ -125,18 +125,52 @@ describe('generateWeeklyCommissionInvoices', () => {
 
     expect(result).toEqual({ created: 1, skipped: 0, failed: 0 })
     expect(prisma.commissionInvoice.findUnique).toHaveBeenCalledWith({
-      where: { businessId_weekStart: { businessId: 'biz-1', weekStart: new Date('2026-08-17T00:00:00Z') } },
+      where: { businessId_weekStart: { businessId: 'biz-1', weekStart: new Date('2026-08-24T00:00:00Z') } },
     })
     expect(prisma.order.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          createdAt: { gte: new Date('2026-08-17T00:00:00Z'), lt: new Date('2026-08-31T00:00:00Z') },
+          createdAt: { gte: new Date('2026-08-24T00:00:00Z'), lt: new Date('2026-08-31T00:00:00Z') },
         }),
       }),
     )
     expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        weekStart: new Date('2026-08-17T00:00:00Z'),
+        weekStart: new Date('2026-08-24T00:00:00Z'),
+        weekEnd: new Date('2026-08-31T00:00:00Z'),
+      }),
+    })
+  })
+
+  it('never backfills an exemption/suspension gap when resuming billing after an old real invoice (regression)', async () => {
+    // The last REAL invoice is from months before this run's own week — a gap caused by an
+    // exemption or suspension in between. periodStart must be this run's own weekStart, never
+    // the stale weekEnd of that old invoice, or the whole gap would get swept into one charge.
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
+      id: 'invoice-old',
+      status: 'PAID',
+      weekStart: new Date('2026-06-01T00:00:00Z'),
+      weekEnd: new Date('2026-06-08T00:00:00Z'),
+    } as never)
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
+    vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-2' } as never)
+    vi.mocked(createAsaasCharge).mockResolvedValue({ paymentId: 'pay_123' })
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 1, skipped: 0, failed: 0 })
+    expect(prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          createdAt: { gte: new Date('2026-08-24T00:00:00Z'), lt: new Date('2026-08-31T00:00:00Z') },
+        }),
+      }),
+    )
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        weekStart: new Date('2026-08-24T00:00:00Z'),
         weekEnd: new Date('2026-08-31T00:00:00Z'),
       }),
     })
