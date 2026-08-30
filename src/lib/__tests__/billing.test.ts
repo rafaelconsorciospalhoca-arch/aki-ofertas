@@ -106,6 +106,7 @@ describe('suspendForPayment', () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', suspendedReason: null, category: { commissionPercent: null },
+      commissionOverrideEnabled: false, commissionOverridePercent: null,
     } as never)
 
     await suspendForPayment('sub_123')
@@ -121,6 +122,7 @@ describe('suspendForPayment', () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', suspendedReason: 'ADMIN', category: { commissionPercent: null },
+      commissionOverrideEnabled: false, commissionOverridePercent: null,
     } as never)
 
     await suspendForPayment('sub_123')
@@ -132,6 +134,20 @@ describe('suspendForPayment', () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', suspendedReason: null, category: { commissionPercent: 10 },
+      commissionOverrideEnabled: false, commissionOverridePercent: null,
+    } as never)
+
+    await suspendForPayment('sub_123')
+
+    expect(prisma.business.update).not.toHaveBeenCalled()
+  })
+
+  it('does not suspend a business whose category has no commission but has a forced commission override', async () => {
+    vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({
+      id: 'biz-1', suspendedReason: null,
+      commissionOverrideEnabled: true, commissionOverridePercent: 15,
+      category: { commissionPercent: null },
     } as never)
 
     await suspendForPayment('sub_123')

@@ -39,8 +39,8 @@ describe('GET /api/cron/expire-trials', () => {
   it('suspends only ACTIVE businesses past their trial with no active subscription', async () => {
     process.env.CRON_SECRET = 'the-secret'
     vi.mocked(prisma.business.findMany).mockResolvedValue([
-      { id: 'biz-1', subscriptions: [] },
-      { id: 'biz-2', subscriptions: [{ id: 'sub-1' }] },
+      { id: 'biz-1', subscriptions: [], category: { commissionPercent: null }, commissionOverrideEnabled: false, commissionOverridePercent: null },
+      { id: 'biz-2', subscriptions: [{ id: 'sub-1' }], category: { commissionPercent: null }, commissionOverrideEnabled: false, commissionOverridePercent: null },
     ] as never)
     vi.mocked(prisma.business.updateMany).mockResolvedValue({ count: 1 } as never)
 
@@ -50,12 +50,29 @@ describe('GET /api/cron/expire-trials', () => {
     expect(await response.json()).toEqual({ suspended: 1 })
     expect(prisma.business.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'ACTIVE', trialEndsAt: { lt: expect.any(Date) }, category: { commissionPercent: null } },
+        where: { status: 'ACTIVE', trialEndsAt: { lt: expect.any(Date) } },
       }),
     )
     expect(prisma.business.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['biz-1'] } },
       data: { status: 'SUSPENDED', suspendedReason: 'TRIAL_EXPIRED' },
     })
+  })
+
+  it('does not suspend a business excluded from trial expiry by a commission override', async () => {
+    process.env.CRON_SECRET = 'the-secret'
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      {
+        id: 'biz-1', subscriptions: [],
+        category: { commissionPercent: null },
+        commissionOverrideEnabled: true, commissionOverridePercent: 10,
+      },
+    ] as never)
+    vi.mocked(prisma.business.updateMany).mockResolvedValue({ count: 0 } as never)
+
+    const response = await GET(request('Bearer the-secret'))
+
+    expect(await response.json()).toEqual({ suspended: 0 })
+    expect(prisma.business.updateMany).not.toHaveBeenCalled()
   })
 })

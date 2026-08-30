@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getEffectiveCommissionPercent } from '@/lib/commission'
 
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
@@ -11,10 +12,10 @@ export async function GET(request: Request) {
   }
 
   const expired = await prisma.business.findMany({
-    where: { status: 'ACTIVE', trialEndsAt: { lt: new Date() }, category: { commissionPercent: null } },
-    include: { subscriptions: { where: { status: 'ACTIVE' } } },
+    where: { status: 'ACTIVE', trialEndsAt: { lt: new Date() } },
+    include: { subscriptions: { where: { status: 'ACTIVE' } }, category: true },
   })
-  const toSuspend = expired.filter((b) => b.subscriptions.length === 0)
+  const toSuspend = expired.filter((b) => b.subscriptions.length === 0 && getEffectiveCommissionPercent(b) === null)
 
   if (toSuspend.length > 0) {
     await prisma.business.updateMany({

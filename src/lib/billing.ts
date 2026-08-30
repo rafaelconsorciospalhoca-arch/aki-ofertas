@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { getEffectiveCommissionPercent } from '@/lib/commission'
 
 export async function activateSubscription(asaasSubscriptionId: string): Promise<void> {
   const subscription = await prisma.subscription.findFirst({ where: { asaasSubscriptionId } })
@@ -31,7 +32,7 @@ export async function suspendForPayment(asaasSubscriptionId: string): Promise<vo
     include: { category: true },
   })
   if (business?.suspendedReason === 'ADMIN') return
-  if (business && business.category.commissionPercent !== null) return
+  if (business && getEffectiveCommissionPercent(business) !== null) return
 
   await prisma.subscription.update({ where: { id: subscription.id }, data: { status: 'INACTIVE' } })
   await prisma.business.update({

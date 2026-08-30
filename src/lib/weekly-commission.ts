@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { createAsaasCustomer, createAsaasCharge } from '@/lib/asaas'
+import { getEffectiveCommissionPercent } from '@/lib/commission'
 
 export function getPreviousWeekWindow(now: Date = new Date()): { weekStart: Date; weekEnd: Date } {
   const day = now.getUTCDay()
@@ -22,7 +23,7 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
   const { weekStart, weekEnd } = getPreviousWeekWindow(now)
 
   const businesses = await prisma.business.findMany({
-    where: { status: 'ACTIVE', category: { commissionPercent: { not: null } } },
+    where: { status: 'ACTIVE' },
     include: { category: true, owner: true },
   })
 
@@ -31,7 +32,7 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
   let failed = 0
 
   for (const business of businesses) {
-    const percent = business.category.commissionPercent
+    const percent = getEffectiveCommissionPercent(business)
     if (percent === null) {
       skipped++
       continue

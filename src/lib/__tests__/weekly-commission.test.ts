@@ -51,6 +51,8 @@ const commissionBusiness = {
   whatsapp: '5546999990000',
   category: { commissionPercent: 10 },
   owner: { name: 'João', email: 'joao@x.com' },
+  commissionOverrideEnabled: false,
+  commissionOverridePercent: null,
 }
 
 describe('generateWeeklyCommissionInvoices', () => {
@@ -309,5 +311,23 @@ describe('generateWeeklyCommissionInvoices', () => {
         feeCents: 400,
       },
     })
+  })
+
+  it('uses a business-level override percent instead of the category default', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([
+      { ...commissionBusiness, commissionOverrideEnabled: true, commissionOverridePercent: 20 },
+    ] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ discountPrice: 10000, quantity: 1, offer: { discountPrice: 10000 } }] as never)
+    vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-1' } as never)
+    vi.mocked(createAsaasCharge).mockResolvedValue({ paymentId: 'pay_123' })
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 1, skipped: 0, failed: 0 })
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ percent: 20, feeCents: 2000 }) }),
+    )
   })
 })
