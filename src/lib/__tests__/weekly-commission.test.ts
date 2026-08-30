@@ -6,7 +6,7 @@ import { createAsaasCustomer, createAsaasCharge } from '@/lib/asaas'
 vi.mock('@/lib/db', () => ({
   prisma: {
     business: { findMany: vi.fn(), update: vi.fn() },
-    commissionInvoice: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    commissionInvoice: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     order: { findMany: vi.fn() },
   },
 }))
@@ -58,6 +58,7 @@ describe('generateWeeklyCommissionInvoices', () => {
 
   it('skips a business that already has an invoice for the week', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue({ id: 'existing-invoice' } as never)
 
     const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
@@ -68,6 +69,7 @@ describe('generateWeeklyCommissionInvoices', () => {
 
   it('skips a business with zero sales in the week, without creating an invoice', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([])
 
@@ -77,8 +79,50 @@ describe('generateWeeklyCommissionInvoices', () => {
     expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
   })
 
+  it('skips a business whose accumulated fee is still below the R$5,00 minimum', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 3000 }, quantity: 1 }] as never)
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
+    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+  })
+
+  it('accumulates from the last invoice weekEnd when the new period crosses the minimum', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({ weekEnd: new Date('2026-08-17T00:00:00Z') } as never)
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
+    vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-1' } as never)
+    vi.mocked(createAsaasCharge).mockResolvedValue({ paymentId: 'pay_123' })
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(result).toEqual({ created: 1, skipped: 0, failed: 0 })
+    expect(prisma.commissionInvoice.findUnique).toHaveBeenCalledWith({
+      where: { businessId_weekStart: { businessId: 'biz-1', weekStart: new Date('2026-08-17T00:00:00Z') } },
+    })
+    expect(prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          createdAt: { gte: new Date('2026-08-17T00:00:00Z'), lt: new Date('2026-08-31T00:00:00Z') },
+        }),
+      }),
+    )
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        weekStart: new Date('2026-08-17T00:00:00Z'),
+        weekEnd: new Date('2026-08-31T00:00:00Z'),
+      }),
+    })
+  })
+
   it('creates an invoice and an Asaas charge, reusing an existing Asaas customer id', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([
       { offer: { discountPrice: 5000 }, quantity: 2 },
@@ -120,6 +164,7 @@ describe('generateWeeklyCommissionInvoices', () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([
       { ...commissionBusiness, asaasCustomerId: null },
     ] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
     vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-1' } as never)
@@ -137,6 +182,7 @@ describe('generateWeeklyCommissionInvoices', () => {
 
   it('counts a business as failed and continues to the next one when the Asaas call throws', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness, { ...commissionBusiness, id: 'biz-2' }] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
     vi.mocked(prisma.commissionInvoice.create)
@@ -147,5 +193,6 @@ describe('generateWeeklyCommissionInvoices', () => {
     const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
 
     expect(result).toEqual({ created: 1, skipped: 0, failed: 1 })
+    expect(prisma.commissionInvoice.delete).toHaveBeenCalledWith({ where: { id: 'invoice-1' } })
   })
 })

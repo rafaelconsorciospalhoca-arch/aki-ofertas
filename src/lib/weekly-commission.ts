@@ -14,6 +14,8 @@ export function calculateCommissionFee(salesCents: number, percent: number): num
   return Math.round((salesCents * percent) / 100)
 }
 
+const MIN_INVOICE_FEE_CENTS = 500
+
 export type GenerateInvoicesResult = { created: number; skipped: number; failed: number }
 
 export async function generateWeeklyCommissionInvoices(now: Date = new Date()): Promise<GenerateInvoicesResult> {
@@ -35,8 +37,15 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
       continue
     }
 
+    const lastInvoice = await prisma.commissionInvoice.findFirst({
+      where: { businessId: business.id },
+      orderBy: { weekEnd: 'desc' },
+      select: { weekEnd: true },
+    })
+    const periodStart = lastInvoice?.weekEnd ?? weekStart
+
     const existing = await prisma.commissionInvoice.findUnique({
-      where: { businessId_weekStart: { businessId: business.id, weekStart } },
+      where: { businessId_weekStart: { businessId: business.id, weekStart: periodStart } },
     })
     if (existing) {
       skipped++
@@ -44,17 +53,18 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
     }
 
     const orders = await prisma.order.findMany({
-      where: { businessId: business.id, createdAt: { gte: weekStart, lt: weekEnd }, status: { not: 'CANCELLED' } },
+      where: { businessId: business.id, createdAt: { gte: periodStart, lt: weekEnd }, status: { not: 'CANCELLED' } },
       select: { quantity: true, offer: { select: { discountPrice: true } } },
     })
     const salesCents = orders.reduce((sum, order) => sum + order.offer.discountPrice * order.quantity, 0)
-    if (salesCents === 0) {
+
+    const feeCents = calculateCommissionFee(salesCents, percent)
+    if (feeCents < MIN_INVOICE_FEE_CENTS) {
       skipped++
       continue
     }
 
-    const feeCents = calculateCommissionFee(salesCents, percent)
-
+    let invoice: { id: string } | undefined
     try {
       let asaasCustomerId = business.asaasCustomerId
       if (!asaasCustomerId) {
@@ -68,14 +78,23 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
         await prisma.business.update({ where: { id: business.id }, data: { asaasCustomerId } })
       }
 
-      const invoice = await prisma.commissionInvoice.create({
-        data: { businessId: business.id, weekStart, weekEnd, salesCents, percent, feeCents, dueDate: weekEnd, status: 'PENDING' },
+      invoice = await prisma.commissionInvoice.create({
+        data: {
+          businessId: business.id,
+          weekStart: periodStart,
+          weekEnd,
+          salesCents,
+          percent,
+          feeCents,
+          dueDate: weekEnd,
+          status: 'PENDING',
+        },
       })
 
       const { paymentId } = await createAsaasCharge({
         customerId: asaasCustomerId,
         value: feeCents / 100,
-        description: `Comissão semanal (${percent}%) — ${weekStart.toLocaleDateString('pt-BR')} a ${weekEnd.toLocaleDateString('pt-BR')}`,
+        description: `Comissão semanal (${percent}%) — ${periodStart.toLocaleDateString('pt-BR')} a ${weekEnd.toLocaleDateString('pt-BR')}`,
         externalReference: invoice.id,
         dueDate: weekEnd,
       })
@@ -84,6 +103,13 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
       created++
     } catch (err) {
       console.error('generateWeeklyCommissionInvoices failed for business', business.id, err)
+      if (invoice) {
+        try {
+          await prisma.commissionInvoice.delete({ where: { id: invoice.id } })
+        } catch (deleteErr) {
+          console.error('generateWeeklyCommissionInvoices failed to delete invoice after error', invoice.id, deleteErr)
+        }
+      }
       failed++
     }
   }
