@@ -40,16 +40,22 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
     const lastInvoice = await prisma.commissionInvoice.findFirst({
       where: { businessId: business.id },
       orderBy: { weekEnd: 'desc' },
-      select: { weekEnd: true },
     })
-    const periodStart = lastInvoice?.weekEnd ?? weekStart
 
-    const existing = await prisma.commissionInvoice.findUnique({
-      where: { businessId_weekStart: { businessId: business.id, weekStart: periodStart } },
-    })
-    if (existing) {
-      skipped++
-      continue
+    // An ACCUMULATING row is a durable marker for a period whose commission has not yet
+    // reached the minimum. While it exists we keep its ORIGINAL weekStart so the uninvoiced
+    // sales are carried forward instead of being silently discarded each run.
+    const accumulatingId = lastInvoice?.status === 'ACCUMULATING' ? lastInvoice.id : null
+    const periodStart = accumulatingId ? lastInvoice!.weekStart : (lastInvoice?.weekEnd ?? weekStart)
+
+    if (!accumulatingId) {
+      const existing = await prisma.commissionInvoice.findUnique({
+        where: { businessId_weekStart: { businessId: business.id, weekStart: periodStart } },
+      })
+      if (existing) {
+        skipped++
+        continue
+      }
     }
 
     const orders = await prisma.order.findMany({
@@ -60,11 +66,31 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
 
     const feeCents = calculateCommissionFee(salesCents, percent)
     if (feeCents < MIN_INVOICE_FEE_CENTS) {
+      if (accumulatingId) {
+        // Extend the existing marker: same weekStart/status, new end date and running totals.
+        await prisma.commissionInvoice.update({
+          where: { id: accumulatingId },
+          data: { weekEnd, salesCents, feeCents },
+        })
+      } else {
+        await prisma.commissionInvoice.create({
+          data: {
+            businessId: business.id,
+            weekStart: periodStart,
+            weekEnd,
+            salesCents,
+            percent,
+            feeCents,
+            dueDate: weekEnd,
+            status: 'ACCUMULATING',
+          },
+        })
+      }
       skipped++
       continue
     }
 
-    let invoice: { id: string } | undefined
+    let invoiceId: string | undefined
     try {
       let asaasCustomerId = business.asaasCustomerId
       if (!asaasCustomerId) {
@@ -78,36 +104,51 @@ export async function generateWeeklyCommissionInvoices(now: Date = new Date()): 
         await prisma.business.update({ where: { id: business.id }, data: { asaasCustomerId } })
       }
 
-      invoice = await prisma.commissionInvoice.create({
-        data: {
-          businessId: business.id,
-          weekStart: periodStart,
-          weekEnd,
-          salesCents,
-          percent,
-          feeCents,
-          dueDate: weekEnd,
-          status: 'PENDING',
-        },
-      })
+      if (accumulatingId) {
+        // Promote the accumulating marker in place into a real charge.
+        await prisma.commissionInvoice.update({
+          where: { id: accumulatingId },
+          data: { weekEnd, salesCents, feeCents, percent, dueDate: weekEnd, status: 'PENDING' },
+        })
+        invoiceId = accumulatingId
+      } else {
+        const invoice = await prisma.commissionInvoice.create({
+          data: {
+            businessId: business.id,
+            weekStart: periodStart,
+            weekEnd,
+            salesCents,
+            percent,
+            feeCents,
+            dueDate: weekEnd,
+            status: 'PENDING',
+          },
+        })
+        invoiceId = invoice.id
+      }
 
       const { paymentId } = await createAsaasCharge({
         customerId: asaasCustomerId,
         value: feeCents / 100,
         description: `Comissão semanal (${percent}%) — ${periodStart.toLocaleDateString('pt-BR')} a ${weekEnd.toLocaleDateString('pt-BR')}`,
-        externalReference: invoice.id,
+        externalReference: invoiceId,
         dueDate: weekEnd,
       })
 
-      await prisma.commissionInvoice.update({ where: { id: invoice.id }, data: { asaasPaymentId: paymentId } })
+      await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { asaasPaymentId: paymentId } })
       created++
     } catch (err) {
       console.error('generateWeeklyCommissionInvoices failed for business', business.id, err)
-      if (invoice) {
+      if (invoiceId) {
+        // Revert to the accumulating marker rather than deleting the row: deleting would lose
+        // the accumulated period start and silently discard the merchant's uninvoiced sales.
         try {
-          await prisma.commissionInvoice.delete({ where: { id: invoice.id } })
-        } catch (deleteErr) {
-          console.error('generateWeeklyCommissionInvoices failed to delete invoice after error', invoice.id, deleteErr)
+          await prisma.commissionInvoice.update({
+            where: { id: invoiceId },
+            data: { status: 'ACCUMULATING', asaasPaymentId: null },
+          })
+        } catch (revertErr) {
+          console.error('generateWeeklyCommissionInvoices failed to revert invoice after error', invoiceId, revertErr)
         }
       }
       failed++

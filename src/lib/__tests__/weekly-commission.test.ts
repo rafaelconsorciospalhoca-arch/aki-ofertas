@@ -67,7 +67,7 @@ describe('generateWeeklyCommissionInvoices', () => {
     expect(prisma.order.findMany).not.toHaveBeenCalled()
   })
 
-  it('skips a business with zero sales in the week, without creating an invoice', async () => {
+  it('skips a business with zero sales in the week, without charging anything', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
     vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
@@ -76,10 +76,13 @@ describe('generateWeeklyCommissionInvoices', () => {
     const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
 
     expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
-    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+    expect(createAsaasCharge).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'ACCUMULATING', salesCents: 0, feeCents: 0 }),
+    })
   })
 
-  it('skips a business whose accumulated fee is still below the R$5,00 minimum', async () => {
+  it('creates an ACCUMULATING marker when the fee is still below the R$5,00 minimum', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
     vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
@@ -88,12 +91,29 @@ describe('generateWeeklyCommissionInvoices', () => {
     const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
 
     expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
-    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+    expect(createAsaasCharge).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
+      data: {
+        businessId: 'biz-1',
+        weekStart: new Date('2026-08-24T00:00:00Z'),
+        weekEnd: new Date('2026-08-31T00:00:00Z'),
+        salesCents: 3000,
+        percent: 10,
+        feeCents: 300,
+        dueDate: new Date('2026-08-31T00:00:00Z'),
+        status: 'ACCUMULATING',
+      },
+    })
   })
 
   it('accumulates from the last invoice weekEnd when the new period crosses the minimum', async () => {
     vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
-    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({ weekEnd: new Date('2026-08-17T00:00:00Z') } as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
+      id: 'invoice-old',
+      status: 'PAID',
+      weekStart: new Date('2026-08-10T00:00:00Z'),
+      weekEnd: new Date('2026-08-17T00:00:00Z'),
+    } as never)
     vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
     vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 10000 }, quantity: 1 }] as never)
     vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-1' } as never)
@@ -193,6 +213,101 @@ describe('generateWeeklyCommissionInvoices', () => {
     const result = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
 
     expect(result).toEqual({ created: 1, skipped: 0, failed: 1 })
-    expect(prisma.commissionInvoice.delete).toHaveBeenCalledWith({ where: { id: 'invoice-1' } })
+    // The row is reverted to the accumulating marker, never deleted — deleting would lose the period.
+    expect(prisma.commissionInvoice.delete).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.update).toHaveBeenCalledWith({
+      where: { id: 'invoice-1' },
+      data: { status: 'ACCUMULATING', asaasPaymentId: null },
+    })
+  })
+
+  it('carries a below-minimum period forward across weeks instead of resetting it (regression)', async () => {
+    // Run 1: no invoice at all yet, R$30 of sales -> R$3,00 fee, below the R$5,00 minimum.
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.commissionInvoice.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 3000 }, quantity: 1 }] as never)
+    vi.mocked(prisma.commissionInvoice.create).mockResolvedValue({ id: 'invoice-1' } as never)
+
+    const run1 = await generateWeeklyCommissionInvoices(new Date('2026-08-31T06:00:00Z'))
+
+    expect(run1).toEqual({ created: 0, skipped: 1, failed: 0 })
+    expect(prisma.commissionInvoice.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        weekStart: new Date('2026-08-24T00:00:00Z'),
+        status: 'ACCUMULATING',
+      }),
+    })
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+    expect(createAsaasCharge).not.toHaveBeenCalled()
+
+    vi.clearAllMocks()
+
+    // Run 2, one week later: the ACCUMULATING marker from run 1 is now the latest invoice.
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
+      id: 'invoice-1',
+      status: 'ACCUMULATING',
+      weekStart: new Date('2026-08-24T00:00:00Z'),
+      weekEnd: new Date('2026-08-31T00:00:00Z'),
+    } as never)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 3000 }, quantity: 3 }] as never)
+    vi.mocked(createAsaasCharge).mockResolvedValue({ paymentId: 'pay_789' })
+
+    const run2 = await generateWeeklyCommissionInvoices(new Date('2026-09-07T06:00:00Z'))
+
+    expect(run2).toEqual({ created: 1, skipped: 0, failed: 0 })
+    // The period did NOT reset to run 2's own Monday (2026-08-31) — it kept run 1's start.
+    expect(prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          createdAt: { gte: new Date('2026-08-24T00:00:00Z'), lt: new Date('2026-09-07T00:00:00Z') },
+        }),
+      }),
+    )
+    // The duplicate guard is skipped while continuing an accumulating row.
+    expect(prisma.commissionInvoice.findUnique).not.toHaveBeenCalled()
+    // The existing row is promoted in place, not duplicated.
+    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.update).toHaveBeenCalledWith({
+      where: { id: 'invoice-1' },
+      data: {
+        weekEnd: new Date('2026-09-07T00:00:00Z'),
+        salesCents: 9000,
+        feeCents: 900,
+        percent: 10,
+        dueDate: new Date('2026-09-07T00:00:00Z'),
+        status: 'PENDING',
+      },
+    })
+    expect(createAsaasCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ externalReference: 'invoice-1', value: 9 }),
+    )
+  })
+
+  it('extends an ongoing ACCUMULATING row that is still below the minimum', async () => {
+    vi.mocked(prisma.business.findMany).mockResolvedValue([commissionBusiness] as never)
+    vi.mocked(prisma.commissionInvoice.findFirst).mockResolvedValue({
+      id: 'invoice-1',
+      status: 'ACCUMULATING',
+      weekStart: new Date('2026-08-24T00:00:00Z'),
+      weekEnd: new Date('2026-08-31T00:00:00Z'),
+    } as never)
+    vi.mocked(prisma.order.findMany).mockResolvedValue([{ offer: { discountPrice: 2000 }, quantity: 2 }] as never)
+
+    const result = await generateWeeklyCommissionInvoices(new Date('2026-09-07T06:00:00Z'))
+
+    expect(result).toEqual({ created: 0, skipped: 1, failed: 0 })
+    expect(prisma.commissionInvoice.create).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.delete).not.toHaveBeenCalled()
+    expect(createAsaasCharge).not.toHaveBeenCalled()
+    expect(prisma.commissionInvoice.update).toHaveBeenCalledWith({
+      where: { id: 'invoice-1' },
+      data: {
+        weekEnd: new Date('2026-09-07T00:00:00Z'),
+        salesCents: 4000,
+        feeCents: 400,
+      },
+    })
   })
 })

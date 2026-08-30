@@ -56,10 +56,13 @@ export async function markCommissionInvoiceOverdue(invoiceId: string): Promise<v
   const invoice = await prisma.commissionInvoice.findUnique({ where: { id: invoiceId } })
   if (!invoice) return
 
+  // The invoice is overdue as a matter of fact, regardless of the business's suspension state.
+  await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { status: 'OVERDUE' } })
+
+  // Only the business-suspension write is gated: never override a suspension imposed for another reason.
   const business = await prisma.business.findUnique({ where: { id: invoice.businessId } })
   if (business?.suspendedReason && business.suspendedReason !== 'COMMISSION_OVERDUE') return
 
-  await prisma.commissionInvoice.update({ where: { id: invoiceId }, data: { status: 'OVERDUE' } })
   await prisma.business.update({
     where: { id: invoice.businessId },
     data: { status: 'SUSPENDED', suspendedReason: 'COMMISSION_OVERDUE' },
