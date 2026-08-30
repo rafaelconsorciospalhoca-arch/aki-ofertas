@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, FlatList, Dimensions, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { View, FlatList, useWindowDimensions, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { colors } from '@/theme/colors'
 import { FeaturedOfferCard } from '@/components/FeaturedOfferCard'
 import type { OfferListItem } from '@/api/types'
 
 const SIDE_PADDING = 16
-const CARD_WIDTH = Dimensions.get('window').width - SIDE_PADDING * 2
 const AUTO_ADVANCE_MS = 5000
 
 export function FeaturedCarousel({ offers }: { offers: OfferListItem[] }) {
+  // `useWindowDimensions` (reactive) instead of a module-level `Dimensions.get('window')`
+  // snapshot — on web the static snapshot can be taken before the real viewport settles,
+  // producing a too-narrow card that both crops the offer image harder than intended and
+  // lets the "OFERTA ESPECIAL" tag collide with the discount badge.
+  const { width: windowWidth } = useWindowDimensions()
+  const CARD_WIDTH = windowWidth - SIDE_PADDING * 2
   const [index, setIndex] = useState(0)
   const listRef = useRef<FlatList<OfferListItem>>(null)
 
