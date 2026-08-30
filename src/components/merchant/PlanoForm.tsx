@@ -27,7 +27,9 @@ export function PlanoForm({
         setError(result.error)
         return
       }
-      window.location.href = result.invoiceUrl
+      if (result.invoiceUrl) {
+        window.location.href = result.invoiceUrl
+      }
     } catch {
       setError('Algo deu errado. Tente novamente.')
     } finally {

@@ -250,6 +250,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue(null)
@@ -262,6 +263,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
@@ -288,6 +290,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', document: '12345678900', asaasCustomerId: 'cus_existing', whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
@@ -306,6 +309,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', status: 'ACTIVE', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
@@ -322,6 +326,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', status: 'PENDING', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
 
@@ -335,6 +340,7 @@ describe('subscribeToPlan', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', status: 'ACTIVE', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
     vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
@@ -345,5 +351,25 @@ describe('subscribeToPlan', () => {
 
     expect(result).toEqual({ ok: false, error: 'Não foi possível validar seu CPF/CNPJ. Confira e tente novamente.' })
     expect(createAsaasSubscription).not.toHaveBeenCalled()
+  })
+
+  it('skips Asaas billing and activates the subscription directly when the category charges commission', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
+    vi.mocked(prisma.business.findFirst).mockResolvedValue({
+      id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
+      category: { commissionPercent: 10 },
+      owner: { blocked: false, name: 'João', email: 'joao@x.com' },
+    } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(prisma.subscription.create).mockResolvedValue({ id: 'sub-local-1' } as never)
+
+    const result = await subscribeToPlan('plan-1', '12345678900')
+
+    expect(result).toEqual({ ok: true, invoiceUrl: null })
+    expect(createAsaasCustomer).not.toHaveBeenCalled()
+    expect(createAsaasSubscription).not.toHaveBeenCalled()
+    expect(prisma.subscription.create).toHaveBeenCalledWith({
+      data: { businessId: 'biz-1', planId: 'plan-1', status: 'ACTIVE' },
+    })
   })
 })

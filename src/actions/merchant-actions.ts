@@ -163,7 +163,7 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
   return { ok: true }
 }
 
-export type SubscribeToPlanResult = { ok: true; invoiceUrl: string } | { ok: false; error: string }
+export type SubscribeToPlanResult = { ok: true; invoiceUrl: string | null } | { ok: false; error: string }
 
 export async function subscribeToPlan(planId: string, document: string): Promise<SubscribeToPlanResult> {
   const session = await auth()
@@ -177,7 +177,10 @@ export async function subscribeToPlan(planId: string, document: string): Promise
 
   const business = await prisma.business.findFirst({
     where: { ownerId: session.user.id as string },
-    include: { owner: { select: { blocked: true, name: true, email: true } } },
+    include: {
+      owner: { select: { blocked: true, name: true, email: true } },
+      category: { select: { commissionPercent: true } },
+    },
   })
   if (!business || business.owner.blocked) {
     return { ok: false, error: 'Empresa não encontrada.' }
@@ -200,6 +203,12 @@ export async function subscribeToPlan(planId: string, document: string): Promise
   }
 
   await prisma.business.update({ where: { id: business.id }, data: { document } })
+
+  if (business.category.commissionPercent !== null) {
+    await prisma.business.update({ where: { id: business.id }, data: { planId: plan.id } })
+    await prisma.subscription.create({ data: { businessId: business.id, planId: plan.id, status: 'ACTIVE' } })
+    return { ok: true, invoiceUrl: null }
+  }
 
   let asaasCustomerId = business.asaasCustomerId
   if (!asaasCustomerId) {
