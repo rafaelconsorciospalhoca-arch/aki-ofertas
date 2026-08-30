@@ -121,6 +121,8 @@ model Business {
   plan         Plan?          @relation(fields: [planId], references: [id])
   trialEndsAt  DateTime?
   asaasCustomerId String?
+  commissionOverrideEnabled Boolean @default(false)
+  commissionOverridePercent Int?
   suspendedReason String?
   createdAt    DateTime       @default(now())
   slug         String         @unique
