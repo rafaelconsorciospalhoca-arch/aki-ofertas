@@ -83,6 +83,7 @@ model Category {
   icon   String
   order  Int     @default(0)
   active Boolean @default(true)
+  commissionPercent Int?
 
   businesses Business[]
   offers     Offer[]
@@ -135,6 +136,7 @@ model Business {
   menuItems       MenuItem[]
   deliveryZones   DeliveryZone[]
   orders          Order[]
+  commissionInvoices CommissionInvoice[]
 
   @@map("businesses")
 }
@@ -180,6 +182,25 @@ model DeliveryZone {
 
   @@unique([businessId, neighborhood])
   @@map("delivery_zones")
+}
+
+model CommissionInvoice {
+  id             String    @id @default(cuid())
+  businessId     String
+  business       Business  @relation(fields: [businessId], references: [id])
+  weekStart      DateTime
+  weekEnd        DateTime
+  salesCents     Int
+  percent        Int
+  feeCents       Int
+  status         String    @default("PENDING")
+  asaasPaymentId String?
+  dueDate        DateTime
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([businessId, weekStart])
+  @@map("commission_invoices")
 }
 
 model BusinessHours {
