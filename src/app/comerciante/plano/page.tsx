@@ -1,7 +1,9 @@
 import { auth } from '@/lib/auth'
 import { getBusinessForOwner } from '@/lib/merchant'
 import { getPaidPlans } from '@/lib/plans'
+import { getCommissionInvoicesForBusiness } from '@/lib/commission-invoices'
 import { PlanoForm } from '@/components/merchant/PlanoForm'
+import { CommissionPanel } from '@/components/merchant/CommissionPanel'
 
 function daysLeft(trialEndsAt: Date | null): number | null {
   if (!trialEndsAt) return null
@@ -29,6 +31,7 @@ export default async function ComerciantePlanoPage({
   }
 
   const trialDays = daysLeft(business.trialEndsAt)
+  const commissionPercent = business.category.commissionPercent
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +51,11 @@ export default async function ComerciantePlanoPage({
         ) : null}
       </div>
 
-      <PlanoForm plans={plans} initialDocument={business.document ?? ''} />
+      {commissionPercent !== null ? (
+        <CommissionPanel percent={commissionPercent} invoices={await getCommissionInvoicesForBusiness(business.id)} />
+      ) : (
+        <PlanoForm plans={plans} initialDocument={business.document ?? ''} />
+      )}
     </div>
   )
 }
