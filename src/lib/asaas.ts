@@ -75,3 +75,31 @@ export async function createAsaasSubscription(
 
   return { subscriptionId: subscription.id as string, invoiceUrl }
 }
+
+export type CreateAsaasChargeInput = {
+  customerId: string
+  value: number
+  description: string
+  externalReference: string
+  dueDate: Date
+}
+
+export async function createAsaasCharge(input: CreateAsaasChargeInput): Promise<{ paymentId: string }> {
+  const payment = await asaasFetch('/payments', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: input.customerId,
+      billingType: 'UNDEFINED',
+      value: input.value,
+      dueDate: input.dueDate.toISOString().slice(0, 10),
+      description: input.description,
+      externalReference: input.externalReference,
+    }),
+  })
+  return { paymentId: payment.id as string }
+}
+
+export async function getAsaasPaymentInvoiceUrl(paymentId: string): Promise<string | null> {
+  const payment = await asaasFetch(`/payments/${paymentId}`, { method: 'GET' })
+  return (payment.invoiceUrl as string | undefined) ?? null
+}

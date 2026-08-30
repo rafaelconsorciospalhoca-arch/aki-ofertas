@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAsaasCustomer, createAsaasSubscription } from '@/lib/asaas'
+import { createAsaasCustomer, createAsaasSubscription, createAsaasCharge, getAsaasPaymentInvoiceUrl } from '@/lib/asaas'
 import { getAppSettings } from '@/lib/app-settings'
 
 vi.mock('@/lib/app-settings', () => ({ getAppSettings: vi.fn() }))
@@ -116,5 +116,64 @@ describe('createAsaasSubscription', () => {
     await expect(
       createAsaasSubscription({ customerId: 'cus_123', value: 49.9, description: 'Plano Básico', externalReference: 'biz-1' }),
     ).rejects.toThrow('Assinatura criada, mas sem link de pagamento.')
+  })
+})
+
+describe('createAsaasCharge', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('creates a one-off charge and returns the payment id', async () => {
+    vi.mocked(getAppSettings).mockResolvedValue({ asaasMode: 'SANDBOX', asaasSandboxApiKey: 'sandbox-key' } as never)
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 'pay_123' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await createAsaasCharge({
+      customerId: 'cus_123',
+      value: 25.5,
+      description: 'Comissão semanal',
+      externalReference: 'invoice-1',
+      dueDate: new Date('2026-09-01'),
+    })
+
+    expect(result).toEqual({ paymentId: 'pay_123' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api-sandbox.asaas.com/v3/payments',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    const [, init] = fetchMock.mock.calls[0]
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body).toMatchObject({
+      customer: 'cus_123',
+      billingType: 'UNDEFINED',
+      value: 25.5,
+      dueDate: '2026-09-01',
+      externalReference: 'invoice-1',
+    })
+  })
+})
+
+describe('getAsaasPaymentInvoiceUrl', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('returns the invoice url for a payment', async () => {
+    vi.mocked(getAppSettings).mockResolvedValue({ asaasMode: 'SANDBOX', asaasSandboxApiKey: 'sandbox-key' } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ invoiceUrl: 'https://sandbox.asaas.com/i/xyz' })))
+
+    const url = await getAsaasPaymentInvoiceUrl('pay_123')
+    expect(url).toBe('https://sandbox.asaas.com/i/xyz')
+  })
+
+  it('returns null when the payment has no invoice url', async () => {
+    vi.mocked(getAppSettings).mockResolvedValue({ asaasMode: 'SANDBOX', asaasSandboxApiKey: 'sandbox-key' } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({})))
+
+    const url = await getAsaasPaymentInvoiceUrl('pay_123')
+    expect(url).toBeNull()
   })
 })
