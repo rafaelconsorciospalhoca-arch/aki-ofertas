@@ -7,6 +7,7 @@ import { slugify, randomSlugSuffix } from '@/lib/slug'
 import { auth } from '@/lib/auth'
 import { geocodeAddress } from '@/lib/geocode'
 import { createAsaasCustomer, createAsaasSubscription } from '@/lib/asaas'
+import { getEffectiveCommissionPercent } from '@/lib/commission'
 
 const signUpMerchantSchema = z.object({
   ownerName: z.string().min(2, 'Informe seu nome.'),
@@ -204,7 +205,7 @@ export async function subscribeToPlan(planId: string, document: string): Promise
 
   await prisma.business.update({ where: { id: business.id }, data: { document } })
 
-  if (business.category.commissionPercent !== null) {
+  if (getEffectiveCommissionPercent(business) !== null) {
     await prisma.business.update({ where: { id: business.id }, data: { planId: plan.id } })
     await prisma.subscription.create({ data: { businessId: business.id, planId: plan.id, status: 'ACTIVE' } })
     return { ok: true, invoiceUrl: null }

@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { getBusinessForOwner } from '@/lib/merchant'
 import { getPaidPlans } from '@/lib/plans'
 import { getCommissionInvoicesForBusiness } from '@/lib/commission-invoices'
+import { getEffectiveCommissionPercent } from '@/lib/commission'
 import { PlanoForm } from '@/components/merchant/PlanoForm'
 import { CommissionPanel } from '@/components/merchant/CommissionPanel'
 
@@ -31,7 +32,7 @@ export default async function ComerciantePlanoPage({
   }
 
   const trialDays = daysLeft(business.trialEndsAt)
-  const commissionPercent = business.category.commissionPercent
+  const commissionPercent = getEffectiveCommissionPercent(business)
 
   return (
     <div className="flex flex-col gap-6">
