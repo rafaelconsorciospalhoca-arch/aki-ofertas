@@ -141,7 +141,15 @@ export default function PedidoScreen() {
 
   const subtotal = offer.discountPrice * quantity
   const total = calculateOrderTotal(subtotal, selectedZone?.feeCents ?? null)
-  const canSubmit = !createOrder.isPending && phone && address && city && state.length === 2 && !!selectedZone && !cityMismatch
+  const canSubmit =
+    !createOrder.isPending &&
+    cepStatus !== 'loading' &&
+    phone &&
+    address &&
+    city &&
+    state.length === 2 &&
+    !!selectedZone &&
+    !cityMismatch
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -171,7 +179,11 @@ export default function PedidoScreen() {
         style={styles.input}
         placeholder="CEP"
         value={cep}
-        onChangeText={setCep}
+        onChangeText={(value) => {
+          setCep(value)
+          if (cepStatus !== 'idle') setCepStatus('idle')
+          if (cityMismatch) setCityMismatch(false)
+        }}
         onBlur={handleCepBlur}
         keyboardType="numeric"
         maxLength={9}
