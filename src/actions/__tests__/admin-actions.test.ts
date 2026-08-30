@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan, saveAppSettings } from '@/actions/admin-actions'
+import { updateBusinessStatus, updateBusinessCommissionOverride, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan, saveAppSettings } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -143,6 +143,76 @@ describe('updateBusinessStatus', () => {
     expect(result).toEqual({ ok: true })
     const call = vi.mocked(prisma.business.update).mock.calls[0][0]
     expect((call.data as { suspendedReason: string | null }).suspendedReason).toBeNull()
+  })
+})
+
+describe('updateBusinessCommissionOverride', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('rejects when not an admin', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'CATEGORY_DEFAULT' })
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects when the business does not exist', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue(null)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'CATEGORY_DEFAULT' })
+    expect(result).toEqual({ ok: false, error: 'Empresa não encontrada.' })
+  })
+
+  it('rejects an invalid percent when forcing a commission', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'FORCE_PERCENT', percent: '150' })
+    expect(result).toEqual({ ok: false, error: 'Percentual de comissão inválido.' })
+  })
+
+  it('clears the override when set back to the category default', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'CATEGORY_DEFAULT' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { commissionOverrideEnabled: false, commissionOverridePercent: null },
+    })
+  })
+
+  it('forces no commission', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'FORCE_NONE' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { commissionOverrideEnabled: true, commissionOverridePercent: null },
+    })
+  })
+
+  it('forces a specific commission percent', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1' } as never)
+
+    const result = await updateBusinessCommissionOverride('biz-1', { mode: 'FORCE_PERCENT', percent: '20' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { commissionOverrideEnabled: true, commissionOverridePercent: 20 },
+    })
   })
 })
 

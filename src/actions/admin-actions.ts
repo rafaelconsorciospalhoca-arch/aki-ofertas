@@ -49,6 +49,57 @@ export async function updateBusinessStatus(
   return { ok: true }
 }
 
+const commissionOverrideSchema = z.object({
+  mode: z.enum(['CATEGORY_DEFAULT', 'FORCE_PERCENT', 'FORCE_NONE']),
+  percent: z.string().optional(),
+})
+
+export async function updateBusinessCommissionOverride(
+  businessId: string,
+  input: z.infer<typeof commissionOverrideSchema>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = commissionOverrideSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: 'Dados inválidos.' }
+  }
+
+  const business = await prisma.business.findUnique({ where: { id: businessId } })
+  if (!business) {
+    return { ok: false, error: 'Empresa não encontrada.' }
+  }
+
+  if (parsed.data.mode === 'CATEGORY_DEFAULT') {
+    await prisma.business.update({
+      where: { id: businessId },
+      data: { commissionOverrideEnabled: false, commissionOverridePercent: null },
+    })
+    return { ok: true }
+  }
+
+  if (parsed.data.mode === 'FORCE_NONE') {
+    await prisma.business.update({
+      where: { id: businessId },
+      data: { commissionOverrideEnabled: true, commissionOverridePercent: null },
+    })
+    return { ok: true }
+  }
+
+  const percent = Number(parsed.data.percent)
+  if (!parsed.data.percent || !Number.isInteger(percent) || percent < 0 || percent > 100) {
+    return { ok: false, error: 'Percentual de comissão inválido.' }
+  }
+
+  await prisma.business.update({
+    where: { id: businessId },
+    data: { commissionOverrideEnabled: true, commissionOverridePercent: percent },
+  })
+  return { ok: true }
+}
+
 const categorySchema = z.object({
   name: z.string().min(2, 'Informe o nome da categoria.'),
   icon: z.string().min(1, 'Informe o ícone.'),

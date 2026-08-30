@@ -57,7 +57,9 @@ export default async function AdminEmpresasPage({
               className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4"
             >
               <div>
-                <p className="text-sm font-bold text-neutral-900">{business.name}</p>
+                <Link href={`/admin/empresas/${business.id}`} className="text-sm font-bold text-neutral-900 hover:underline">
+                  {business.name}
+                </Link>
                 <p className="text-xs text-neutral-500">
                   {business.category.name} · {business.city} - {business.state}
                 </p>

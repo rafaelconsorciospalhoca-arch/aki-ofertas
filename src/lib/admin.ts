@@ -23,6 +23,13 @@ export async function getBusinessesForAdmin(status?: BusinessStatus) {
   })
 }
 
+export async function getBusinessById(id: string) {
+  return prisma.business.findUnique({
+    where: { id },
+    include: { category: true, owner: { select: { name: true, email: true } } },
+  })
+}
+
 export async function getAllCategories() {
   return prisma.category.findMany({ orderBy: { order: 'asc' } })
 }
