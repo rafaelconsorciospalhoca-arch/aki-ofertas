@@ -146,7 +146,7 @@ describe('updateBusinessStatus', () => {
   })
 })
 
-const validCategoryInput = { name: 'Pet Shop', icon: 'pet', order: '9', active: true }
+const validCategoryInput = { name: 'Pet Shop', icon: 'pet', order: '9', active: true, commissionPercent: '' }
 
 describe('createCategory', () => {
   afterEach(() => {
@@ -202,8 +202,31 @@ describe('createCategory', () => {
 
     expect(result).toEqual({ ok: true, categoryId: 'cat-1' })
     expect(prisma.category.create).toHaveBeenCalledWith({
-      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true },
+      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true, commissionPercent: null },
     })
+  })
+
+  it('rejects an invalid commission percent', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
+
+    const result = await createCategory({ name: 'Padarias', icon: 'bread', order: '1', active: true, commissionPercent: '150' })
+    expect(result).toEqual({ ok: false, error: 'Percentual de comissão inválido.' })
+  })
+
+  it('saves a valid commission percent', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue(null as never)
+    vi.mocked(prisma.category.create).mockResolvedValue({ id: 'cat-1' } as never)
+
+    const result = await createCategory({ name: 'Padarias', icon: 'bread', order: '1', active: true, commissionPercent: '10' })
+
+    expect(result).toEqual({ ok: true, categoryId: 'cat-1' })
+    expect(prisma.category.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ commissionPercent: 10 }) }),
+    )
   })
 })
 
@@ -239,8 +262,31 @@ describe('updateCategory', () => {
     expect(result).toEqual({ ok: true })
     expect(prisma.category.update).toHaveBeenCalledWith({
       where: { id: 'cat-1' },
-      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true },
+      data: { name: 'Pet Shop', icon: 'pet', order: 9, active: true, commissionPercent: null },
     })
+  })
+
+  it('rejects an invalid commission percent', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'cat-1' } as never)
+
+    const result = await updateCategory('cat-1', { ...validCategoryInput, commissionPercent: '150' })
+    expect(result).toEqual({ ok: false, error: 'Percentual de comissão inválido.' })
+  })
+
+  it('saves a valid commission percent', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } } as never)
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(activeAdmin as never)
+    vi.mocked(prisma.category.findUnique).mockResolvedValue({ id: 'cat-1' } as never)
+    vi.mocked(prisma.category.update).mockResolvedValue({ id: 'cat-1' } as never)
+
+    const result = await updateCategory('cat-1', { ...validCategoryInput, commissionPercent: '10' })
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.category.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ commissionPercent: 10 }) }),
+    )
   })
 })
 

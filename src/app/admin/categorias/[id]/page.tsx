@@ -18,6 +18,7 @@ export default async function EditarCategoriaPage({ params }: { params: { id: st
           icon: category.icon,
           order: String(category.order),
           active: category.active,
+          commissionPercent: category.commissionPercent !== null ? String(category.commissionPercent) : '',
         }}
       />
     </div>

@@ -9,6 +9,7 @@ type Values = {
   icon: string
   order: string
   active: boolean
+  commissionPercent: string
 }
 
 export function CategoryForm({
@@ -19,7 +20,9 @@ export function CategoryForm({
   initialValues?: Values
 }) {
   const router = useRouter()
-  const [values, setValues] = useState<Values>(initialValues ?? { name: '', icon: '', order: '0', active: true })
+  const [values, setValues] = useState<Values>(
+    initialValues ?? { name: '', icon: '', order: '0', active: true, commissionPercent: '' },
+  )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -78,6 +81,17 @@ export function CategoryForm({
       <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
         <input type="checkbox" checked={values.active} onChange={(e) => update('active', e.target.checked)} />
         Ativa
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+        Comissão de entrega (%) — deixe vazio se não cobrar
+        <input
+          type="number"
+          min="0"
+          max="100"
+          value={values.commissionPercent}
+          onChange={(e) => update('commissionPercent', e.target.value)}
+          className={inputClass}
+        />
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

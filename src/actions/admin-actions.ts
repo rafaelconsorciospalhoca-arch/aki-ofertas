@@ -54,6 +54,7 @@ const categorySchema = z.object({
   icon: z.string().min(1, 'Informe o ícone.'),
   order: z.string().min(1, 'Informe a ordem.'),
   active: z.boolean(),
+  commissionPercent: z.string().optional(),
 })
 
 type CategoryInput = z.infer<typeof categorySchema>
@@ -65,6 +66,16 @@ function parseOrder(value: string): number | { error: string } {
     return { error: 'Ordem inválida.' }
   }
   return order
+}
+
+function parseCommissionPercent(value: string | undefined): { value: number | null } | { error: string } {
+  const trimmed = value?.trim()
+  if (!trimmed) return { value: null }
+  const percent = Number(trimmed)
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+    return { error: 'Percentual de comissão inválido.' }
+  }
+  return { value: percent }
 }
 
 export async function createCategory(input: CategoryInput): Promise<CategoryResult> {
@@ -82,13 +93,18 @@ export async function createCategory(input: CategoryInput): Promise<CategoryResu
     return { ok: false, error: order.error }
   }
 
+  const commission = parseCommissionPercent(parsed.data.commissionPercent)
+  if ('error' in commission) {
+    return { ok: false, error: commission.error }
+  }
+
   const existing = await prisma.category.findUnique({ where: { name: parsed.data.name } })
   if (existing) {
     return { ok: false, error: 'Esta categoria já existe.' }
   }
 
   const category = await prisma.category.create({
-    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active },
+    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active, commissionPercent: commission.value },
   })
 
   return { ok: true, categoryId: category.id }
@@ -112,6 +128,11 @@ export async function updateCategory(
     return { ok: false, error: order.error }
   }
 
+  const commission = parseCommissionPercent(parsed.data.commissionPercent)
+  if ('error' in commission) {
+    return { ok: false, error: commission.error }
+  }
+
   const existing = await prisma.category.findUnique({ where: { id } })
   if (!existing) {
     return { ok: false, error: 'Categoria não encontrada.' }
@@ -119,7 +140,7 @@ export async function updateCategory(
 
   await prisma.category.update({
     where: { id },
-    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active },
+    data: { name: parsed.data.name, icon: parsed.data.icon, order, active: parsed.data.active, commissionPercent: commission.value },
   })
 
   return { ok: true }
