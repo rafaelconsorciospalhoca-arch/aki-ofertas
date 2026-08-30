@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOutUser } from '@/actions/auth-actions'
 
 const NAV_ITEMS: Record<'comerciante' | 'admin', { href: string; label: string }[]> = {
   comerciante: [
@@ -59,6 +60,13 @@ export function DashboardShell({
             )
           })}
         </nav>
+        <button
+          type="button"
+          onClick={() => signOutUser()}
+          className="mt-6 w-full rounded-lg px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/10"
+        >
+          Sair
+        </button>
       </aside>
       <main className="flex-1 p-6">{children}</main>
     </div>

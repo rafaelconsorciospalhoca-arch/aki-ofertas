@@ -3,6 +3,11 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
+import { signOut } from '@/lib/auth'
+
+export async function signOutUser(): Promise<void> {
+  await signOut({ redirectTo: '/entrar' })
+}
 
 const signUpSchema = z.object({
   name: z.string().min(2, 'Informe seu nome.'),

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { signUpConsumer } from '@/actions/auth-actions'
+import { signUpConsumer, signOutUser } from '@/actions/auth-actions'
 import { prisma } from '@/lib/db'
+import { signOut } from '@/lib/auth'
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -10,6 +11,7 @@ vi.mock('@/lib/db', () => ({
     },
   },
 }))
+vi.mock('@/lib/auth', () => ({ signOut: vi.fn() }))
 
 describe('signUpConsumer', () => {
   afterEach(() => {
@@ -77,5 +79,14 @@ describe('signUpConsumer', () => {
     expect(result).toEqual({ ok: true, userId: 'new-user-id' })
     expect(vi.mocked(prisma.user.findUnique).mock.calls[0][0].where.email).toBe('maria@gmail.com')
     expect(vi.mocked(prisma.user.create).mock.calls[0][0].data.email).toBe('maria@gmail.com')
+  })
+})
+
+describe('signOutUser', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('signs out and redirects to the login page', async () => {
+    await signOutUser()
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: '/entrar' })
   })
 })
