@@ -14,6 +14,8 @@ export type OrderRow = {
   state: string
   zip: string | null
   notes: string | null
+  selectedOptions: string | null
+  optionsFeeCents: number | null
   status: OrderStatus
   createdAt: Date
   offerId: string
@@ -44,6 +46,8 @@ function toOrderRow(row: {
   state: string
   zip: string | null
   notes: string | null
+  selectedOptions: string | null
+  optionsFeeCents: number | null
   status: OrderStatus
   createdAt: Date
   offerId: string
@@ -64,6 +68,8 @@ function toOrderRow(row: {
     state: row.state,
     zip: row.zip,
     notes: row.notes,
+    selectedOptions: row.selectedOptions,
+    optionsFeeCents: row.optionsFeeCents,
     status: row.status,
     createdAt: row.createdAt,
     offerId: row.offerId,

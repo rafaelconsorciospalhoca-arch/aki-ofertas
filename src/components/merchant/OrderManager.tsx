@@ -17,6 +17,8 @@ type Order = {
   city: string
   state: string
   notes: string | null
+  selectedOptions: string | null
+  optionsFeeCents: number | null
   status: string
   createdAt: Date
   offerTitle: string
@@ -145,7 +147,7 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
               <p>Taxa de entrega: R$ {centsToReais(order.deliveryFeeCents)}</p>
             ) : null}
             <p className="font-bold">
-              Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0))}
+              Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0) + (order.optionsFeeCents ?? 0))}
             </p>
             <p className="col-span-2">Telefone: {order.phone}</p>
             <p className="col-span-2">
@@ -153,6 +155,7 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
               {order.number ? `, ${order.number}` : ''}
               {order.neighborhood ? ` - ${order.neighborhood}` : ''}, {order.city}/{order.state}
             </p>
+            {order.selectedOptions && <p className="col-span-2">Opções: {order.selectedOptions}</p>}
             {order.notes && <p className="col-span-2">Obs: {order.notes}</p>}
           </div>
 
