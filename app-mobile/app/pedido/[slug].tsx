@@ -9,6 +9,7 @@ import { useCreateOrder } from '@/api/hooks/useOrders'
 import { useDeliveryInterest } from '@/api/hooks/useDeliveryInterest'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/api/client'
+import { lookupCep } from '@/utils/cep'
 
 const OTHER_NEIGHBORHOOD = '__other__'
 
@@ -28,6 +29,9 @@ export default function PedidoScreen() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [notes, setNotes] = useState('')
+  const [cep, setCep] = useState('')
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'not-found'>('idle')
+  const [cityMismatch, setCityMismatch] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [interestSent, setInterestSent] = useState(false)
@@ -87,6 +91,41 @@ export default function PedidoScreen() {
     }
   }
 
+  async function handleCepBlur() {
+    const digits = cep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    setCepStatus('loading')
+    const result = await lookupCep(cep)
+    if (!result) {
+      setCepStatus('not-found')
+      return
+    }
+    setCepStatus('idle')
+
+    const sameCity =
+      result.city.trim().toLowerCase() === offer!.business.city.trim().toLowerCase() &&
+      result.state.trim().toUpperCase() === offer!.business.state.trim().toUpperCase()
+
+    if (!sameCity) {
+      setCityMismatch(true)
+      setSelectedZoneId(null)
+      return
+    }
+    setCityMismatch(false)
+
+    setAddress(result.street || address)
+    setCity(result.city)
+    setState(result.state)
+
+    const matchedZone = offer!.deliveryZones.find(
+      (zone) => zone.neighborhood.trim().toLowerCase() === result.neighborhood.trim().toLowerCase(),
+    )
+    if (matchedZone) {
+      setSelectedZoneId(matchedZone.id)
+    }
+  }
+
   if (success) {
     return (
       <View style={styles.centered}>
@@ -102,7 +141,7 @@ export default function PedidoScreen() {
 
   const subtotal = offer.discountPrice * quantity
   const total = calculateOrderTotal(subtotal, selectedZone?.feeCents ?? null)
-  const canSubmit = !createOrder.isPending && phone && address && city && state.length === 2 && !!selectedZone
+  const canSubmit = !createOrder.isPending && phone && address && city && state.length === 2 && !!selectedZone && !cityMismatch
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -128,6 +167,22 @@ export default function PedidoScreen() {
 
       <Text style={styles.sectionTitle}>Endereço de entrega</Text>
       <TextInput style={styles.input} placeholder="Telefone (com DDD)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+      <TextInput
+        style={styles.input}
+        placeholder="CEP"
+        value={cep}
+        onChangeText={setCep}
+        onBlur={handleCepBlur}
+        keyboardType="numeric"
+        maxLength={9}
+      />
+      {cepStatus === 'loading' && <Text style={styles.cepHint}>Buscando endereço...</Text>}
+      {cepStatus === 'not-found' && <Text style={styles.cepError}>CEP não encontrado, preencha manualmente.</Text>}
+      {cityMismatch && (
+        <Text style={styles.cepError}>
+          Esse CEP é de fora da área atendida por {offer.business.name}. Você pode retirar no local usando o cupom.
+        </Text>
+      )}
       <TextInput style={styles.input} placeholder="Endereço" value={address} onChangeText={setAddress} />
       <TextInput style={styles.input} placeholder="Número" value={number} onChangeText={setNumber} />
 
@@ -270,6 +325,8 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 14, color: colors.neutral500 },
   totalValue: { fontSize: 20, fontWeight: '800', color: colors.green },
   error: { color: colors.red, fontSize: 13, textAlign: 'center' },
+  cepHint: { fontSize: 12, color: colors.neutral500 },
+  cepError: { fontSize: 12, color: colors.red, fontWeight: '600' },
   primaryButton: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 })
