@@ -14,7 +14,7 @@ export type CommissionInvoiceRow = {
 
 export async function getCommissionInvoicesForBusiness(businessId: string): Promise<CommissionInvoiceRow[]> {
   const rows = await prisma.commissionInvoice.findMany({
-    where: { businessId },
+    where: { businessId, status: { not: 'ACCUMULATING' } },
     orderBy: { weekStart: 'desc' },
   })
 

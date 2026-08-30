@@ -17,6 +17,14 @@ describe('getCommissionInvoicesForBusiness', () => {
     expect(result).toEqual([])
   })
 
+  it('excludes ACCUMULATING marker rows from the query', async () => {
+    vi.mocked(prisma.commissionInvoice.findMany).mockResolvedValue([])
+    await getCommissionInvoicesForBusiness('biz-1')
+    expect(prisma.commissionInvoice.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { businessId: 'biz-1', status: { not: 'ACCUMULATING' } } }),
+    )
+  })
+
   it('resolves a pay url for a PENDING invoice', async () => {
     vi.mocked(prisma.commissionInvoice.findMany).mockResolvedValue([
       {
