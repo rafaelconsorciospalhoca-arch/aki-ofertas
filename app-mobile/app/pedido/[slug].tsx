@@ -25,6 +25,7 @@ export default function PedidoScreen() {
   const [address, setAddress] = useState('')
   const [number, setNumber] = useState('')
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null)
+  const [selectedChoiceIds, setSelectedChoiceIds] = useState<string[]>([])
   const [otherNeighborhood, setOtherNeighborhood] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
@@ -60,6 +61,17 @@ export default function PedidoScreen() {
   const selectedZone = offer.deliveryZones.find((z) => z.id === selectedZoneId) ?? null
   const choosingOther = selectedZoneId === OTHER_NEIGHBORHOOD
 
+  function toggleChoice(group: { id: string; type: 'SINGLE' | 'MULTIPLE'; choices: { id: string }[] }, choiceId: string) {
+    setSelectedChoiceIds((prev) => {
+      const groupChoiceIds = new Set(group.choices.map((c) => c.id))
+      const withoutGroup = prev.filter((id) => !groupChoiceIds.has(id))
+      if (group.type === 'SINGLE') {
+        return prev.includes(choiceId) ? withoutGroup : [...withoutGroup, choiceId]
+      }
+      return prev.includes(choiceId) ? prev.filter((id) => id !== choiceId) : [...prev, choiceId]
+    })
+  }
+
   async function handleSubmit() {
     if (!selectedZone) return
     setError(null)
@@ -74,6 +86,7 @@ export default function PedidoScreen() {
         city,
         state,
         notes: notes || undefined,
+        selectedChoiceIds,
       })
       setSuccess(true)
     } catch (err) {
@@ -139,8 +152,15 @@ export default function PedidoScreen() {
     )
   }
 
-  const subtotal = offer.discountPrice * quantity
+  const optionsFeeCents = offer.optionGroups
+    .flatMap((group) => group.choices)
+    .filter((choice) => selectedChoiceIds.includes(choice.id))
+    .reduce((sum, choice) => sum + choice.extraPriceCents, 0) * quantity
+  const subtotal = offer.discountPrice * quantity + optionsFeeCents
   const total = calculateOrderTotal(subtotal, selectedZone?.feeCents ?? null)
+  const missingRequiredGroup = offer.optionGroups.some(
+    (group) => group.required && !group.choices.some((choice) => selectedChoiceIds.includes(choice.id)),
+  )
   const canSubmit =
     !createOrder.isPending &&
     cepStatus !== 'loading' &&
@@ -149,7 +169,8 @@ export default function PedidoScreen() {
     city &&
     state.length === 2 &&
     !!selectedZone &&
-    !cityMismatch
+    !cityMismatch &&
+    !missingRequiredGroup
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -197,6 +218,33 @@ export default function PedidoScreen() {
       )}
       <TextInput style={styles.input} placeholder="Endereço" value={address} onChangeText={setAddress} />
       <TextInput style={styles.input} placeholder="Número" value={number} onChangeText={setNumber} />
+
+      {offer.optionGroups.length > 0 &&
+        offer.optionGroups.map((group) => (
+          <View key={group.id} style={{ gap: 6 }}>
+            <Text style={styles.label}>
+              {group.name}
+              {group.required ? ' *' : ''}
+            </Text>
+            <View style={styles.zoneList}>
+              {group.choices.map((choice) => {
+                const selected = selectedChoiceIds.includes(choice.id)
+                return (
+                  <Pressable
+                    key={choice.id}
+                    style={[styles.zoneOption, selected && styles.zoneOptionSelected]}
+                    onPress={() => toggleChoice(group, choice.id)}
+                  >
+                    <Text style={[styles.zoneOptionText, selected && styles.zoneOptionTextSelected]}>
+                      {choice.name}
+                      {choice.extraPriceCents > 0 ? ` (+${formatCents(choice.extraPriceCents)})` : ''}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          </View>
+        ))}
 
       <Text style={styles.label}>Bairro</Text>
       <View style={styles.zoneList}>

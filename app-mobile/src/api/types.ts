@@ -33,6 +33,13 @@ export type OfferDetail = {
   endDate: string
   deliveryEnabled: boolean
   deliveryZones: { id: string; neighborhood: string; feeCents: number }[]
+  optionGroups: {
+    id: string
+    name: string
+    type: 'SINGLE' | 'MULTIPLE'
+    required: boolean
+    choices: { id: string; name: string; extraPriceCents: number }[]
+  }[]
   business: {
     id: string
     name: string
@@ -121,6 +128,7 @@ export type OrderRow = {
   number: string | null
   neighborhood: string | null
   deliveryFeeCents: number | null
+  optionsFeeCents: number | null
   city: string
   state: string
   zip: string | null
@@ -148,4 +156,5 @@ export type CreateOrderInput = {
   state: string
   zip?: string
   notes?: string
+  selectedChoiceIds?: string[]
 }
