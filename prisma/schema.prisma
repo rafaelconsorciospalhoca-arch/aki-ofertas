@@ -42,6 +42,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OfferOptionGroupType {
+  SINGLE
+  MULTIPLE
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -242,11 +247,37 @@ model Offer {
   createdAt         DateTime    @default(now())
   slug              String      @unique
 
-  coupons   Coupon[]
-  favorites Favorite[]
-  orders    Order[]
+  coupons      Coupon[]
+  favorites    Favorite[]
+  orders       Order[]
+  optionGroups OfferOptionGroup[]
 
   @@map("offers")
+}
+
+model OfferOptionGroup {
+  id       String               @id @default(cuid())
+  offerId  String
+  offer    Offer                @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  name     String
+  type     OfferOptionGroupType @default(SINGLE)
+  required Boolean              @default(false)
+  order    Int                  @default(0)
+
+  choices  OfferOptionChoice[]
+
+  @@map("offer_option_groups")
+}
+
+model OfferOptionChoice {
+  id              String           @id @default(cuid())
+  groupId         String
+  group           OfferOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name            String
+  extraPriceCents Int              @default(0)
+  order           Int              @default(0)
+
+  @@map("offer_option_choices")
 }
 
 model Order {
@@ -263,6 +294,8 @@ model Order {
   number       String?
   neighborhood String?
   deliveryFeeCents Int?
+  selectedOptions String?
+  optionsFeeCents Int?
   city         String
   state        String
   zip          String?
