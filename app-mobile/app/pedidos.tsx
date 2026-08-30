@@ -56,7 +56,12 @@ export default function PedidosScreen() {
           </View>
           <Text style={styles.meta}>
             {item.quantity}x ·{' '}
-            {formatCents(calculateOrderTotal(item.discountPrice * item.quantity, item.deliveryFeeCents))}
+            {formatCents(
+              calculateOrderTotal(
+                item.discountPrice * item.quantity + (item.optionsFeeCents ?? 0),
+                item.deliveryFeeCents,
+              ),
+            )}
           </Text>
           <Text style={styles.meta}>
             {item.address}
