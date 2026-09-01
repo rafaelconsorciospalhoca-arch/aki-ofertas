@@ -27,4 +27,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - $CODEMAGIC_EMAIL
+          - rafaelconsorciospalhoca@gmail.com
