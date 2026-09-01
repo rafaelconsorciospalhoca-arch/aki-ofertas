@@ -6,6 +6,8 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     business: { findUnique: vi.fn() },
     review: { aggregate: vi.fn(), findMany: vi.fn(), upsert: vi.fn(), groupBy: vi.fn() },
+    coupon: { findFirst: vi.fn() },
+    order: { findFirst: vi.fn() },
   },
 }))
 
@@ -92,8 +94,50 @@ describe('upsertReviewForBusinessSlug', () => {
     expect(prisma.review.upsert).not.toHaveBeenCalled()
   })
 
-  it('upserts the review for an ACTIVE business', async () => {
+  it('rejects a reviewer who never used a coupon or placed an order at this business', async () => {
     vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue(null)
+
+    const result = await upsertReviewForBusinessSlug('user-1', 'big-burger', 5, 'Muito bom')
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Você precisa ter usado um cupom ou feito um pedido nesta loja para avaliar.',
+    })
+    expect(prisma.review.upsert).not.toHaveBeenCalled()
+  })
+
+  it('does not count a generated-but-unused coupon as engagement', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue(null)
+
+    await upsertReviewForBusinessSlug('user-1', 'big-burger', 5, null)
+
+    expect(prisma.coupon.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-1', businessId: 'biz-1', status: 'USED' },
+      select: { id: true },
+    })
+  })
+
+  it('does not count a cancelled order as engagement', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue(null)
+
+    await upsertReviewForBusinessSlug('user-1', 'big-burger', 5, null)
+
+    expect(prisma.order.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-1', businessId: 'biz-1', status: { not: 'CANCELLED' } },
+      select: { id: true },
+    })
+  })
+
+  it('upserts the review for a user who used a coupon at this business', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue({ id: 'coupon-1' } as never)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue(null)
 
     const result = await upsertReviewForBusinessSlug('user-1', 'big-burger', 5, 'Muito bom')
 
@@ -103,5 +147,16 @@ describe('upsertReviewForBusinessSlug', () => {
       update: { rating: 5, comment: 'Muito bom' },
       create: { userId: 'user-1', businessId: 'biz-1', rating: 5, comment: 'Muito bom' },
     })
+  })
+
+  it('upserts the review for a user who placed a non-cancelled order at this business', async () => {
+    vi.mocked(prisma.business.findUnique).mockResolvedValue({ id: 'biz-1', status: 'ACTIVE' } as never)
+    vi.mocked(prisma.coupon.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.order.findFirst).mockResolvedValue({ id: 'order-1' } as never)
+
+    const result = await upsertReviewForBusinessSlug('user-1', 'big-burger', 5, 'Muito bom')
+
+    expect(result).toEqual({ ok: true })
+    expect(prisma.review.upsert).toHaveBeenCalled()
   })
 })

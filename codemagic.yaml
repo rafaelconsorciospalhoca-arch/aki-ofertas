@@ -1,6 +1,6 @@
 workflows:
   aki-ofertas-mobile:
-    name: Aki Ofertas — Build de produção (iOS + Android)
+    name: Aki Ofertas — Build de produção (iOS)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -20,10 +20,10 @@ workflows:
         script: |
           cd app-mobile
           npm ci
-      - name: Build de produção (iOS + Android via EAS)
+      - name: Build de produção (iOS via EAS)
         script: |
           cd app-mobile
-          npx eas-cli build --platform all --profile production --non-interactive
+          npx eas-cli build --platform ios --profile production --non-interactive
     publishing:
       email:
         recipients:

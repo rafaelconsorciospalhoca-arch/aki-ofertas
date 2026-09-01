@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { upsertAppSettings, type UpsertAppSettingsInput } from '@/lib/app-settings'
+import { hashPassword } from '@/lib/password'
 
 async function requireAdmin(): Promise<boolean> {
   const session = await auth()
@@ -394,6 +395,24 @@ export async function createPlan(input: PlanInput): Promise<PlanResult> {
   return { ok: true, planId: plan.id }
 }
 
+export async function toggleOfferFeatured(
+  offerId: string,
+  featured: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const offer = await prisma.offer.findUnique({ where: { id: offerId } })
+  if (!offer) {
+    return { ok: false, error: 'Oferta não encontrada.' }
+  }
+
+  await prisma.offer.update({ where: { id: offerId }, data: { featured } })
+
+  return { ok: true }
+}
+
 export async function saveAppSettings(input: UpsertAppSettingsInput): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!(await requireAdmin())) {
     return { ok: false, error: 'Não autorizado.' }
@@ -435,4 +454,55 @@ export async function updatePlan(id: string, input: PlanInput): Promise<{ ok: tr
   })
 
   return { ok: true }
+}
+
+const createUserSchema = z.object({
+  name: z.string().min(2, 'Informe o nome.'),
+  email: z.string().email('E-mail inválido.'),
+  role: z.enum(['CONSUMER', 'ADMIN']),
+  password: z.string().optional(),
+  phone: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+})
+
+type CreateUserInput = z.infer<typeof createUserSchema>
+type CreateUserResult = { ok: true; userId: string } | { ok: false; error: string }
+
+export async function createUserByAdmin(input: CreateUserInput): Promise<CreateUserResult> {
+  if (!(await requireAdmin())) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  const parsed = createUserSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message }
+  }
+
+  if (parsed.data.role === 'ADMIN' && !parsed.data.password) {
+    return { ok: false, error: 'Informe uma senha para uma conta de administrador.' }
+  }
+  if (parsed.data.password && parsed.data.password.length < 8) {
+    return { ok: false, error: 'A senha precisa ter pelo menos 8 caracteres.' }
+  }
+
+  const email = parsed.data.email.trim().toLowerCase()
+  const existing = await prisma.user.findFirst({ where: { email } })
+  if (existing) {
+    return { ok: false, error: 'Este e-mail já está cadastrado.' }
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      name: parsed.data.name,
+      email,
+      role: parsed.data.role,
+      passwordHash: parsed.data.password ? await hashPassword(parsed.data.password) : null,
+      phone: parsed.data.phone || null,
+      city: parsed.data.city || null,
+      state: parsed.data.state ? parsed.data.state.toUpperCase() : null,
+    },
+  })
+
+  return { ok: true, userId: user.id }
 }

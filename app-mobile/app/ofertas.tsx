@@ -1,23 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
 import { useOffersList } from '@/api/hooks/useOffersList'
 import { useCategories } from '@/api/hooks/useCategories'
-import { getStoredLocation, type StoredLocation } from '@/storage/location'
+import { useLocation } from '@/location/LocationContext'
 
 const RADIUS_OPTIONS = [1, 3, 5, 10, 20]
 
 export default function OfertasScreen() {
   const params = useLocalSearchParams<{ categoria?: string }>()
-  const [location, setLocation] = useState<StoredLocation | null>(null)
+  const { location } = useLocation()
   const [categoria, setCategoria] = useState<string | undefined>(params.categoria)
   const [raio, setRaio] = useState<number | undefined>(undefined)
-
-  useEffect(() => {
-    getStoredLocation().then(setLocation)
-  }, [])
 
   const categories = useCategories()
   const offers = useOffersList(location, { categoria, raio })

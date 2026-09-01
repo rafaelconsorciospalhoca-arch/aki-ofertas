@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { requireMerchantBusiness } from '@/actions/offer-actions'
-import { updateOrderStatusForBusiness } from '@/lib/orders'
+import { updateOrderStatusForBusiness, deleteOrderForBusiness } from '@/lib/orders'
 
 const statusSchema = z.enum(['CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'])
 
@@ -21,4 +21,13 @@ export async function updateOrderStatus(
   }
 
   return updateOrderStatusForBusiness(business.id, orderId, parsed.data)
+}
+
+export async function deleteOrder(orderId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const business = await requireMerchantBusiness()
+  if (!business) {
+    return { ok: false, error: 'Não autorizado.' }
+  }
+
+  return deleteOrderForBusiness(business.id, orderId)
 }

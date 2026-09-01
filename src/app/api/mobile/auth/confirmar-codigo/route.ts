@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { verifyOtpCode, MAX_OTP_ATTEMPTS } from '@/lib/mobile-auth'
+import { verifyOtpCode, MAX_OTP_ATTEMPTS, REVIEW_ACCOUNT_EMAIL, REVIEW_ACCOUNT_CODE } from '@/lib/mobile-auth'
 import { createMobileSession } from '@/lib/mobile-session'
 
 const bodySchema = z.object({
@@ -28,28 +28,35 @@ export async function POST(request: Request) {
     // User.email is a case-sensitive unique column; normalizing here keeps a
     // single account per address across OTP, Google and the site sign-up.
     const email = parsed.data.email.trim().toLowerCase()
+    const isReviewAccount = email === REVIEW_ACCOUNT_EMAIL
 
-    const otp = await prisma.emailOtp.findFirst({
-      where: { email, usedAt: null },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (!otp) {
-      return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
-    }
-    if (otp.expiresAt < new Date()) {
-      return NextResponse.json({ ok: false, error: 'Código expirado.' }, { status: 400 })
-    }
-    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
-    }
+    if (isReviewAccount) {
+      if (code !== REVIEW_ACCOUNT_CODE) {
+        return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
+      }
+    } else {
+      const otp = await prisma.emailOtp.findFirst({
+        where: { email, usedAt: null },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!otp) {
+        return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
+      }
+      if (otp.expiresAt < new Date()) {
+        return NextResponse.json({ ok: false, error: 'Código expirado.' }, { status: 400 })
+      }
+      if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+        return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
+      }
 
-    const valid = await verifyOtpCode(code, otp.codeHash)
-    if (!valid) {
-      await prisma.emailOtp.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } })
-      return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
-    }
+      const valid = await verifyOtpCode(code, otp.codeHash)
+      if (!valid) {
+        await prisma.emailOtp.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } })
+        return NextResponse.json({ ok: false, error: 'Código inválido.' }, { status: 400 })
+      }
 
-    await prisma.emailOtp.update({ where: { id: otp.id }, data: { usedAt: new Date() } })
+      await prisma.emailOtp.update({ where: { id: otp.id }, data: { usedAt: new Date() } })
+    }
 
     let user = await prisma.user.findUnique({ where: { email } })
     let isNewUser = false

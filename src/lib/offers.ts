@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { distanceKm, formatDistance } from '@/lib/geo'
 import { getRatingsForBusinesses, type Rating } from '@/lib/reviews'
 import type { Coordinates, CityCookie } from '@/lib/location'
+import type { PaymentMethod } from '@prisma/client'
 
 export type OfferRow = {
   id: string
@@ -71,6 +72,7 @@ export async function getFeaturedOffers(input: {
   const rows = await prisma.offer.findMany({
     where: {
       status: 'ACTIVE',
+      featured: true,
       business: {
         status: 'ACTIVE',
         owner: { blocked: false },
@@ -97,6 +99,40 @@ export async function getFeaturedOffers(input: {
   return items.slice(0, input.limit)
 }
 
+// Restaurants/lanchonetes get sorted first on the unfiltered home-page list
+// during lunch (11:00-13:30) and dinner (from 17:00) hours, to drive demand
+// for that segment when people are actually deciding where to eat. Outside
+// those windows offers are left in their normal order — nothing is hidden.
+const FOOD_CATEGORY_NAME = 'Restaurantes e Lanchonetes'
+
+function isFoodPeakHour(): boolean {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date())
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0)
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0)
+  const minutesSinceMidnight = hour * 60 + minute
+
+  const lunchStart = 11 * 60
+  const lunchEnd = 13 * 60 + 30
+  const dinnerStart = 17 * 60
+
+  return (minutesSinceMidnight >= lunchStart && minutesSinceMidnight <= lunchEnd) || minutesSinceMidnight >= dinnerStart
+}
+
+// Fisher-Yates — doesn't mutate the input array.
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 export async function getOffersList(input: {
   categoryId?: string
   location: Coordinates | null
@@ -118,11 +154,22 @@ export async function getOffersList(input: {
       endDate: { gte: new Date() },
     },
     orderBy: { createdAt: 'desc' },
-    include: { business: true },
+    include: { business: true, category: { select: { name: true } } },
   })
 
   const ratings = await getRatingsForBusinesses(Array.from(new Set(rows.map((row) => row.business.id))))
+  const foodOfferIds = new Set(rows.filter((row) => row.category.name === FOOD_CATEGORY_NAME).map((row) => row.id))
   let items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
+
+  // Without a location there's no meaningful ranking signal anyway (this used
+  // to just be createdAt desc, always the same order) — shuffle so the same
+  // handful of businesses don't permanently camp the top of the unfiltered
+  // list; every visit gives a different set of merchants the top spot. Skip
+  // this when a category/search filter is active, or when we do have a
+  // location: proximity is a real signal worth keeping stable there.
+  if (!input.location && !input.categoryId && !input.query) {
+    items = shuffle(items)
+  }
 
   if (input.location) {
     items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
@@ -130,6 +177,12 @@ export async function getOffersList(input: {
 
   if (input.location && input.radiusKm !== undefined) {
     items = items.filter((item) => item.distanceKm !== null && item.distanceKm <= input.radiusKm!)
+  }
+
+  // Only boost on the unfiltered home-page list — a merchant who already
+  // picked a category or search term wants that result set, not a reshuffle.
+  if (!input.categoryId && !input.query && isFoodPeakHour()) {
+    items = [...items.filter((item) => foodOfferIds.has(item.id)), ...items.filter((item) => !foodOfferIds.has(item.id))]
   }
 
   return items
@@ -163,6 +216,8 @@ export type OfferDetail = {
     whatsapp: string | null
     city: string
     state: string
+    acceptsPickup: boolean
+    acceptedPaymentMethods: PaymentMethod[]
   }
 }
 
@@ -225,6 +280,8 @@ export async function getOfferBySlug(slug: string): Promise<OfferDetail | null> 
       whatsapp: row.business.whatsapp,
       city: row.business.city,
       state: row.business.state,
+      acceptsPickup: row.business.acceptsPickup,
+      acceptedPaymentMethods: row.business.acceptedPaymentMethods,
     },
   }
 }

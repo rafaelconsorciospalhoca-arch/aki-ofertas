@@ -142,7 +142,7 @@ describe('suspendForPayment', () => {
     expect(prisma.business.update).not.toHaveBeenCalled()
   })
 
-  it('does not suspend a business whose category has no commission but has a forced commission override', async () => {
+  it('still suspends a business with a forced commission override (e.g. the Delivery plan) — the override pays commission on top of the plan fee, so a missed plan payment is real and enforceable', async () => {
     vi.mocked(prisma.subscription.findFirst).mockResolvedValue({ id: 'sub-local-1', businessId: 'biz-1' } as never)
     vi.mocked(prisma.business.findUnique).mockResolvedValue({
       id: 'biz-1', suspendedReason: null,
@@ -152,7 +152,10 @@ describe('suspendForPayment', () => {
 
     await suspendForPayment('sub_123')
 
-    expect(prisma.business.update).not.toHaveBeenCalled()
+    expect(prisma.business.update).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+      data: { status: 'SUSPENDED', suspendedReason: 'PAYMENT_OVERDUE' },
+    })
   })
 })
 

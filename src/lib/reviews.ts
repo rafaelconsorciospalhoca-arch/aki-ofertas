@@ -69,6 +69,17 @@ export async function getRatingsForBusinesses(businessIds: string[]): Promise<Ma
   return map
 }
 
+// A used coupon or a non-cancelled order is the customer's proof they actually
+// interacted with this business — without this gate anyone could rate a
+// business they never bought from.
+async function hasEngagedWithBusiness(userId: string, businessId: string): Promise<boolean> {
+  const [usedCoupon, order] = await Promise.all([
+    prisma.coupon.findFirst({ where: { userId, businessId, status: 'USED' }, select: { id: true } }),
+    prisma.order.findFirst({ where: { userId, businessId, status: { not: 'CANCELLED' } }, select: { id: true } }),
+  ])
+  return Boolean(usedCoupon || order)
+}
+
 export type ReviewResult = { ok: true } | { ok: false; error: string }
 
 export async function upsertReviewForBusinessSlug(
@@ -84,6 +95,10 @@ export async function upsertReviewForBusinessSlug(
   const business = await prisma.business.findUnique({ where: { slug }, select: { id: true, status: true } })
   if (!business || business.status !== 'ACTIVE') {
     return { ok: false, error: 'Loja não encontrada.' }
+  }
+
+  if (!(await hasEngagedWithBusiness(userId, business.id))) {
+    return { ok: false, error: 'Você precisa ter usado um cupom ou feito um pedido nesta loja para avaliar.' }
   }
 
   await prisma.review.upsert({

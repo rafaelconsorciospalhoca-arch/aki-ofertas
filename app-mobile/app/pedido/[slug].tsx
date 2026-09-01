@@ -10,8 +10,18 @@ import { useDeliveryInterest } from '@/api/hooks/useDeliveryInterest'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/api/client'
 import { lookupCep } from '@/utils/cep'
+import type { PaymentMethod } from '@/api/types'
 
 const OTHER_NEIGHBORHOOD = '__other__'
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: 'PIX', label: 'Pix' },
+  { value: 'CREDIT_CARD', label: 'Cartão de Crédito' },
+  { value: 'DEBIT_CARD', label: 'Cartão de Débito' },
+  { value: 'FOOD_VOUCHER', label: 'Cartão Alimentação' },
+  { value: 'MEAL_VOUCHER', label: 'Cartão Refeição' },
+  { value: 'CASH', label: 'Dinheiro' },
+]
 
 export default function PedidoScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
@@ -30,6 +40,8 @@ export default function PedidoScreen() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null)
+  const [changeFor, setChangeFor] = useState('')
   const [cep, setCep] = useState('')
   const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'not-found'>('idle')
   const [cityMismatch, setCityMismatch] = useState(false)
@@ -73,9 +85,13 @@ export default function PedidoScreen() {
   }
 
   async function handleSubmit() {
-    if (!selectedZone) return
+    if (!selectedZone || !paymentMethod) return
     setError(null)
     try {
+      const changeForCents =
+        paymentMethod === 'CASH' && changeFor.trim()
+          ? Math.round(Number(changeFor.replace(',', '.')) * 100)
+          : undefined
       await createOrder.mutateAsync({
         offerId: offer!.id,
         quantity,
@@ -87,6 +103,8 @@ export default function PedidoScreen() {
         state,
         notes: notes || undefined,
         selectedChoiceIds,
+        paymentMethod,
+        changeForCents,
       })
       setSuccess(true)
     } catch (err) {
@@ -161,6 +179,14 @@ export default function PedidoScreen() {
   const missingRequiredGroup = offer.optionGroups.some(
     (group) => group.required && !group.choices.some((choice) => selectedChoiceIds.includes(choice.id)),
   )
+  const availablePaymentMethods =
+    offer.business.acceptedPaymentMethods.length > 0
+      ? PAYMENT_METHODS.filter((method) => offer.business.acceptedPaymentMethods.includes(method.value))
+      : PAYMENT_METHODS
+  const changeForCentsPreview =
+    paymentMethod === 'CASH' && changeFor.trim() ? Math.round(Number(changeFor.replace(',', '.')) * 100) : null
+  const invalidChangeFor =
+    paymentMethod === 'CASH' && changeFor.trim() !== '' && (!changeForCentsPreview || changeForCentsPreview <= 0)
   const canSubmit =
     !createOrder.isPending &&
     cepStatus !== 'loading' &&
@@ -170,7 +196,9 @@ export default function PedidoScreen() {
     state.length === 2 &&
     !!selectedZone &&
     !cityMismatch &&
-    !missingRequiredGroup
+    !missingRequiredGroup &&
+    !!paymentMethod &&
+    !invalidChangeFor
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -314,6 +342,33 @@ export default function PedidoScreen() {
         onChangeText={setNotes}
         multiline
       />
+
+      <Text style={styles.label}>Forma de pagamento</Text>
+      <View style={styles.zoneList}>
+        {availablePaymentMethods.map((method) => (
+          <Pressable
+            key={method.value}
+            style={[styles.zoneOption, paymentMethod === method.value && styles.zoneOptionSelected]}
+            onPress={() => setPaymentMethod(method.value)}
+          >
+            <Text style={[styles.zoneOptionText, paymentMethod === method.value && styles.zoneOptionTextSelected]}>
+              {method.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {paymentMethod === 'CASH' && (
+        <View>
+          <TextInput
+            style={styles.input}
+            placeholder="Troco para quanto? (opcional)"
+            value={changeFor}
+            onChangeText={setChangeFor}
+            keyboardType="numeric"
+          />
+          {invalidChangeFor && <Text style={styles.cepError}>Informe um valor de troco válido.</Text>}
+        </View>
+      )}
 
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Total</Text>

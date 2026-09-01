@@ -77,6 +77,24 @@ export async function getUserById(id: string) {
   return prisma.user.findUnique({ where: { id }, select: userSelect })
 }
 
+export async function getOffersForAdmin(query?: string) {
+  return prisma.offer.findMany({
+    where: {
+      status: 'ACTIVE',
+      ...(query
+        ? {
+            OR: [
+              { title: { contains: query, mode: 'insensitive' as const } },
+              { business: { name: { contains: query, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
+    },
+    include: { business: { select: { name: true, city: true, state: true } } },
+    orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
+  })
+}
+
 export async function getAllPlans() {
   return prisma.plan.findMany({ orderBy: { priceCents: 'asc' } })
 }

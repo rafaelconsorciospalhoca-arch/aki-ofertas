@@ -4,7 +4,17 @@ import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import { calculateOrderTotal } from '@/utils/orderTotal'
 import { useOrders } from '@/api/hooks/useOrders'
-import type { OrderStatus } from '@/api/types'
+import { OrderStatusTracker } from '@/components/OrderStatusTracker'
+import type { OrderStatus, PaymentMethod } from '@/api/types'
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  PIX: 'Pix',
+  CREDIT_CARD: 'Cartão de Crédito',
+  DEBIT_CARD: 'Cartão de Débito',
+  FOOD_VOUCHER: 'Cartão Alimentação',
+  MEAL_VOUCHER: 'Cartão Refeição',
+  CASH: 'Dinheiro',
+}
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: 'Pendente',
@@ -67,7 +77,14 @@ export default function PedidosScreen() {
             {item.address}
             {item.number ? `, ${item.number}` : ''} · {item.city}/{item.state}
           </Text>
+          <Text style={styles.meta}>
+            Pagamento: {PAYMENT_LABEL[item.paymentMethod]}
+            {item.paymentMethod === 'CASH' && item.changeForCents
+              ? ` (troco para ${formatCents(item.changeForCents)})`
+              : ''}
+          </Text>
           <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+          <OrderStatusTracker status={item.status} />
         </View>
       )}
     />

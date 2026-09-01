@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, ActivityIndicator, Pressable, FlatList }
 import * as Location from 'expo-location'
 import { router, Stack } from 'expo-router'
 import { colors } from '@/theme/colors'
-import { setStoredLocation } from '@/storage/location'
+import { useLocation } from '@/location/LocationContext'
 import { useCities } from '@/api/hooks/useCities'
 import { apiFetch } from '@/api/client'
 
@@ -11,6 +11,7 @@ export default function OnboardingScreen() {
   const [requesting, setRequesting] = useState(false)
   const [showCityPicker, setShowCityPicker] = useState(false)
   const cities = useCities()
+  const { setLocation } = useLocation()
 
   async function handleAllowLocation() {
     setRequesting(true)
@@ -34,7 +35,7 @@ export default function OnboardingScreen() {
         cityLabel = undefined
       }
 
-      await setStoredLocation({ type: 'gps', lat, lng, cityLabel })
+      await setLocation({ type: 'gps', lat, lng, cityLabel })
       router.replace('/(tabs)')
     } finally {
       setRequesting(false)
@@ -42,7 +43,7 @@ export default function OnboardingScreen() {
   }
 
   async function handleSelectCity(name: string, state: string) {
-    await setStoredLocation({ type: 'city', name, state })
+    await setLocation({ type: 'city', name, state })
     router.replace('/(tabs)')
   }
 

@@ -19,9 +19,11 @@ type Values = {
 export function MerchantSignupForm({
   categories,
   cities,
+  redirectTo = '/entrar?cadastro=sucesso',
 }: {
   categories: { id: string; name: string }[]
   cities: { id: string; name: string; state: string }[]
+  redirectTo?: string
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +97,7 @@ export function MerchantSignupForm({
         return
       }
 
-      router.push('/entrar?cadastro=sucesso')
+      router.push(redirectTo)
     } catch {
       setError('Algo deu errado. Tente novamente.')
     } finally {

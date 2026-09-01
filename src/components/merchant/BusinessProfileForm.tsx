@@ -22,6 +22,7 @@ type Values = {
   zip: string
   logoUrl: string
   coverUrl: string
+  acceptsPickup: boolean
 }
 
 export function BusinessProfileForm({
@@ -108,6 +109,7 @@ export function BusinessProfileForm({
         logoUrl: values.logoUrl,
         coverUrl: values.coverUrl,
         serviceCityIds,
+        acceptsPickup: values.acceptsPickup,
       })
 
       if (!result.ok) {
@@ -241,6 +243,21 @@ export function BusinessProfileForm({
             </label>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-lg border border-neutral-300 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+          <input
+            type="checkbox"
+            checked={values.acceptsPickup}
+            onChange={(e) => update('acceptsPickup', e.target.checked)}
+          />
+          Aceito retirada no local
+        </label>
+        <p className="text-xs font-normal text-neutral-400">
+          Se desmarcado, o app do cliente entende que você só atende por delivery e esconde o botão
+          &quot;Como chegar&quot; nas suas ofertas.
+        </p>
       </div>
 
       <ImageUploadField

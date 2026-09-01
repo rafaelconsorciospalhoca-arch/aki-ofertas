@@ -1,5 +1,7 @@
 export type Rating = { average: number; count: number }
 
+export type PaymentMethod = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'FOOD_VOUCHER' | 'MEAL_VOUCHER' | 'CASH'
+
 export type OfferListItem = {
   id: string
   slug: string
@@ -47,6 +49,8 @@ export type OfferDetail = {
     whatsapp: string | null
     city: string
     state: string
+    acceptsPickup: boolean
+    acceptedPaymentMethods: PaymentMethod[]
   }
 }
 
@@ -129,6 +133,8 @@ export type OrderRow = {
   neighborhood: string | null
   deliveryFeeCents: number | null
   optionsFeeCents: number | null
+  paymentMethod: PaymentMethod
+  changeForCents: number | null
   city: string
   state: string
   zip: string | null
@@ -157,4 +163,6 @@ export type CreateOrderInput = {
   zip?: string
   notes?: string
   selectedChoiceIds?: string[]
+  paymentMethod: PaymentMethod
+  changeForCents?: number
 }

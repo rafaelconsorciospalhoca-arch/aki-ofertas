@@ -138,6 +138,10 @@ describe('signUpMerchant', () => {
     expect(businessData.planId).toBe('plan-free')
     expect((businessData.slug as string).startsWith('pizza-boa-')).toBe(true)
     expect(businessData.serviceCities).toEqual({ connect: { id: 'city-1' } })
+    // Signup always starts a business on the Delivery plan: commission
+    // billing, not a flat monthly fee.
+    expect(businessData.commissionOverrideEnabled).toBe(true)
+    expect(businessData.commissionOverridePercent).toBe(10)
     expect(businessData.lat).toBe(-25.9)
     expect(businessData.lng).toBe(-53.05)
     expect(geocodeAddress).toHaveBeenCalledWith('Rua das Flores, 10, Marmeleiro - PR, Brasil')
@@ -150,6 +154,7 @@ const validBusinessInput = {
   address: 'Rua das Flores, 10',
   city: 'Marmeleiro',
   state: 'pr',
+  acceptsPickup: true,
 }
 
 describe('updateBusiness', () => {
@@ -380,21 +385,25 @@ describe('subscribeToPlan', () => {
     })
   })
 
-  it('skips Asaas billing when a commission override forces commission even without a category default', async () => {
+  it('still goes through normal Asaas billing when a commission override (e.g. the Delivery plan) is active — commission and a paid plan stack, they are not exclusive', async () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: 'u1', role: 'MERCHANT' } } as never)
     vi.mocked(prisma.business.findFirst).mockResolvedValue({
       id: 'biz-1', document: null, asaasCustomerId: null, whatsapp: '5546999990000', email: null,
-      commissionOverrideEnabled: true, commissionOverridePercent: 20,
+      commissionOverrideEnabled: true, commissionOverridePercent: 10,
       category: { commissionPercent: null },
       owner: { blocked: false, name: 'João', email: 'joao@x.com' },
     } as never)
-    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Básico', priceCents: 4990 } as never)
+    vi.mocked(prisma.plan.findUnique).mockResolvedValue({ id: 'plan-1', name: 'Destaque', priceCents: 9990 } as never)
+    vi.mocked(createAsaasCustomer).mockResolvedValue('cus_123')
+    vi.mocked(createAsaasSubscription).mockResolvedValue({ subscriptionId: 'sub_123', invoiceUrl: 'https://sandbox.asaas.com/i/abc' })
     vi.mocked(prisma.subscription.create).mockResolvedValue({ id: 'sub-local-1' } as never)
 
     const result = await subscribeToPlan('plan-1', '12345678900')
 
-    expect(result).toEqual({ ok: true, invoiceUrl: null })
-    expect(createAsaasCustomer).not.toHaveBeenCalled()
-    expect(createAsaasSubscription).not.toHaveBeenCalled()
+    expect(result).toEqual({ ok: true, invoiceUrl: 'https://sandbox.asaas.com/i/abc' })
+    expect(createAsaasCustomer).toHaveBeenCalled()
+    expect(createAsaasSubscription).toHaveBeenCalledWith({
+      customerId: 'cus_123', value: 99.9, description: 'Plano Destaque', externalReference: 'biz-1',
+    })
   })
 })

@@ -197,6 +197,29 @@ describe('POST /api/mobile/auth/confirmar-codigo', () => {
     })
   })
 
+  it('logs the App Store review account in with its fixed code, bypassing the OTP table', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: 'reviewer-1', name: 'Revisor Apple', email: 'revisor@akiofertas.com.br', role: 'CONSUMER', blocked: false,
+    } as never)
+    vi.mocked(createMobileSession).mockResolvedValue('a-token')
+
+    const response = await POST(request({ email: 'revisor@akiofertas.com.br', code: '123456' }))
+
+    expect(response.status).toBe(200)
+    expect(prisma.emailOtp.findFirst).not.toHaveBeenCalled()
+    expect(await response.json()).toEqual({
+      ok: true, token: 'a-token', user: { id: 'reviewer-1', name: 'Revisor Apple', email: 'revisor@akiofertas.com.br' },
+    })
+  })
+
+  it('rejects the review account email with any code other than the fixed one', async () => {
+    const response = await POST(request({ email: 'revisor@akiofertas.com.br', code: '000000' }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ ok: false, error: 'Código inválido.' })
+    expect(prisma.emailOtp.findFirst).not.toHaveBeenCalled()
+  })
+
   it('returns the JSON contract when an unexpected error escapes', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(prisma.emailOtp.findFirst).mockRejectedValue(new Error('connection lost'))

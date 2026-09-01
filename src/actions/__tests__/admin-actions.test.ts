@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { updateBusinessStatus, updateBusinessCommissionOverride, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan, saveAppSettings } from '@/actions/admin-actions'
+import { updateBusinessStatus, updateBusinessCommissionOverride, createCategory, updateCategory, createCity, updateCity, toggleUserBlocked, updateUser, createPlan, updatePlan, saveAppSettings, createUserByAdmin } from '@/actions/admin-actions'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
@@ -8,7 +8,7 @@ vi.mock('@/lib/db', () => ({
     business: { findUnique: vi.fn(), update: vi.fn() },
     category: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     city: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-    user: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
     plan: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     appSettings: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
@@ -689,5 +689,95 @@ describe('saveAppSettings', () => {
     expect(prisma.appSettings.create).toHaveBeenCalledWith({
       data: { asaasMode: 'SANDBOX', asaasSandboxApiKey: 'key' },
     })
+  })
+})
+
+describe('createUserByAdmin', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects when not an admin', async () => {
+    vi.mocked(auth).mockResolvedValue(null as never)
+    const result = await createUserByAdmin({ name: 'Maria', email: 'maria@example.com', role: 'CONSUMER' })
+    expect(result).toEqual({ ok: false, error: 'Não autorizado.' })
+  })
+
+  it('rejects an invalid name', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    const result = await createUserByAdmin({ name: 'R', email: 'maria@example.com', role: 'CONSUMER' })
+    expect(result).toEqual({ ok: false, error: 'Informe o nome.' })
+  })
+
+  it('requires a password for an admin account', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    const result = await createUserByAdmin({ name: 'Maria', email: 'maria@example.com', role: 'ADMIN' })
+    expect(result).toEqual({ ok: false, error: 'Informe uma senha para uma conta de administrador.' })
+    expect(prisma.user.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects a password shorter than 8 characters', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    const result = await createUserByAdmin({
+      name: 'Maria',
+      email: 'maria@example.com',
+      role: 'CONSUMER',
+      password: 'short',
+    })
+    expect(result).toEqual({ ok: false, error: 'A senha precisa ter pelo menos 8 caracteres.' })
+  })
+
+  it('rejects a duplicate email', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'existing' } as never)
+
+    const result = await createUserByAdmin({ name: 'Maria', email: 'maria@example.com', role: 'CONSUMER' })
+    expect(result).toEqual({ ok: false, error: 'Este e-mail já está cadastrado.' })
+    expect(prisma.user.create).not.toHaveBeenCalled()
+  })
+
+  it('creates a consumer without a password, normalizing the email and state', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'user-2' } as never)
+
+    const result = await createUserByAdmin({
+      name: 'Maria',
+      email: 'Maria@Example.com',
+      role: 'CONSUMER',
+      city: 'Marmeleiro',
+      state: 'pr',
+    })
+
+    expect(result).toEqual({ ok: true, userId: 'user-2' })
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Maria',
+        email: 'maria@example.com',
+        role: 'CONSUMER',
+        passwordHash: null,
+        phone: null,
+        city: 'Marmeleiro',
+        state: 'PR',
+      },
+    })
+  })
+
+  it('hashes the password when creating an admin account', async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } } as never)
+    mockUsersById({ 'admin-1': { id: 'admin-1', role: 'ADMIN', blocked: false } })
+    vi.mocked(prisma.user.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: 'admin-2' } as never)
+
+    await createUserByAdmin({ name: 'Novo Admin', email: 'admin2@example.com', role: 'ADMIN', password: 'senha1234' })
+
+    const createCall = vi.mocked(prisma.user.create).mock.calls[0][0]
+    expect(createCall.data.passwordHash).not.toBe('senha1234')
+    expect(createCall.data.passwordHash).toEqual(expect.any(String))
   })
 })

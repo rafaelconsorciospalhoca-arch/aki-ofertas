@@ -14,6 +14,15 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'Cancelado',
 }
 
+const PAYMENT_LABEL: Record<string, string> = {
+  PIX: 'Pix',
+  CREDIT_CARD: 'Cartão de Crédito',
+  DEBIT_CARD: 'Cartão de Débito',
+  FOOD_VOUCHER: 'Cartão Alimentação',
+  MEAL_VOUCHER: 'Cartão Refeição',
+  CASH: 'Dinheiro',
+}
+
 export default async function ImprimirPedidoPage({ params }: { params: { id: string } }) {
   const session = await auth()
   const business = await getBusinessForOwner(session!.user!.id as string)
@@ -27,7 +36,11 @@ export default async function ImprimirPedidoPage({ params }: { params: { id: str
   }
 
   return (
-    <div className="mx-auto max-w-sm p-6 font-mono text-sm text-black">
+    <div className="mx-auto max-w-sm p-6 font-mono text-sm text-black print:mx-0 print:max-w-none print:p-2 print:text-xs">
+      {/* Thermal receipt printers use their own driver page size (80mm roll),
+          not A4/Letter — without this the browser centers the 80mm content
+          on a full A4 page, wasting paper and confusing some drivers. */}
+      <style>{'@page { size: 80mm auto; margin: 0; }'}</style>
       <AutoPrint />
       <h1 className="text-center text-base font-bold">{business.name}</h1>
       <p className="text-center text-xs">Pedido #{order.id.slice(-8).toUpperCase()}</p>
@@ -51,6 +64,11 @@ export default async function ImprimirPedidoPage({ params }: { params: { id: str
       <p className="font-bold">
         Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0) + (order.optionsFeeCents ?? 0))}
       </p>
+      <hr className="my-3 border-dashed border-black" />
+      <p className="font-bold">Pagamento: {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</p>
+      {order.paymentMethod === 'CASH' && order.changeForCents && (
+        <p className="font-bold">Troco para: R$ {centsToReais(order.changeForCents)}</p>
+      )}
       {order.selectedOptions && (
         <>
           <hr className="my-3 border-dashed border-black" />

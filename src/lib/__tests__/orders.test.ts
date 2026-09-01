@@ -13,6 +13,9 @@ vi.mock('@/lib/db', () => ({
     offer: { findUnique: vi.fn() },
     order: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     deliveryZone: { findFirst: vi.fn() },
+    // Empty by default = "hours not configured yet" = always open, so
+    // existing tests that don't care about business hours are unaffected.
+    businessHours: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -36,6 +39,7 @@ const activeOffer = {
     name: 'Big Burger',
     status: 'ACTIVE',
     email: null,
+    acceptedPaymentMethods: [],
     owner: { blocked: false, email: 'dono@bigburger.com' },
   },
   optionGroups: [],
@@ -49,6 +53,7 @@ const validInput = {
   deliveryZoneId: 'zone-1',
   city: 'Marmeleiro',
   state: 'pr',
+  paymentMethod: 'PIX' as const,
 }
 
 const orderRowFixture = {
@@ -65,6 +70,8 @@ const orderRowFixture = {
   notes: null,
   selectedOptions: null,
   optionsFeeCents: null,
+  paymentMethod: 'PIX',
+  changeForCents: null,
   status: 'PENDING',
   createdAt: new Date('2026-01-01'),
   offerId: 'offer-1',
@@ -157,9 +164,26 @@ describe('createOrderForUser', () => {
         notes: null,
         selectedOptions: null,
         optionsFeeCents: null,
+        paymentMethod: 'PIX',
+        changeForCents: null,
       },
       include: { user: { select: { name: true } } },
     })
+  })
+
+  it('rejects an order placed outside the business hours configured for today', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    // mockResolvedValueOnce (not mockResolvedValue): the base mock resolves
+    // [] for every other test in this file, and clearAllMocks in afterEach
+    // clears call history but not a previously-set return value, so a
+    // permanent override here would leak into every later test.
+    vi.mocked(prisma.businessHours.findMany).mockResolvedValueOnce([
+      { weekday: new Date().getDay(), opensAt: '00:00', closesAt: '00:01', closed: false },
+    ] as never)
+
+    const result = await createOrderForUser('user-1', validInput)
+    expect(result).toEqual({ ok: false, error: 'Esta loja está fechada no momento. Confira o horário de atendimento.' })
+    expect(prisma.order.create).not.toHaveBeenCalled()
   })
 
   it('rejects when the delivery zone is not found or inactive for this business', async () => {
@@ -169,6 +193,82 @@ describe('createOrderForUser', () => {
     const result = await createOrderForUser('user-1', validInput)
     expect(result).toEqual({ ok: false, error: 'Bairro inválido ou indisponível.' })
     expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects a payment method the business does not accept', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue({
+      ...activeOffer,
+      business: { ...activeOffer.business, acceptedPaymentMethods: ['PIX', 'CASH'] },
+    } as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, paymentMethod: 'CREDIT_CARD' })
+    expect(result).toEqual({ ok: false, error: 'Forma de pagamento não aceita por esta loja.' })
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('accepts any payment method when the business has not configured any yet', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, paymentMethod: 'CREDIT_CARD' })
+    expect(result).toEqual({ ok: true, orderId: 'order-1' })
+  })
+
+  it('rejects a non-positive changeForCents when paying with cash', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
+
+    const result = await createOrderForUser('user-1', { ...validInput, paymentMethod: 'CASH', changeForCents: 0 })
+    expect(result).toEqual({ ok: false, error: 'Valor de troco inválido.' })
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('stores changeForCents when paying with cash', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+
+    await createOrderForUser('user-1', { ...validInput, paymentMethod: 'CASH', changeForCents: 5000 })
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: 'CASH', changeForCents: 5000 }),
+      }),
+    )
+  })
+
+  it('discards changeForCents when the payment method is not cash', async () => {
+    vi.mocked(prisma.offer.findUnique).mockResolvedValue(activeOffer as never)
+    vi.mocked(prisma.deliveryZone.findFirst).mockResolvedValue({
+      id: 'zone-1',
+      neighborhood: 'Centro',
+      feeCents: 500,
+    } as never)
+    vi.mocked(prisma.order.create).mockResolvedValue({ id: 'order-1', user: { name: 'Maria' } } as never)
+
+    await createOrderForUser('user-1', { ...validInput, paymentMethod: 'PIX', changeForCents: 5000 })
+    expect(prisma.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: 'PIX', changeForCents: null }),
+      }),
+    )
   })
 
   it('notifies the business by email using the business email over the owner email', async () => {
@@ -307,6 +407,8 @@ describe('getOrdersForUser', () => {
         notes: null,
         selectedOptions: null,
         optionsFeeCents: null,
+        paymentMethod: 'PIX',
+        changeForCents: null,
         status: 'PENDING',
         createdAt: new Date('2026-01-01'),
         offerId: 'offer-1',

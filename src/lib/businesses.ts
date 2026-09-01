@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { toOfferListItem, type OfferListItem } from '@/lib/offers'
 import { getRatingsForBusinesses, type Rating } from '@/lib/reviews'
+import type { CityCookie } from '@/lib/location'
 
 export type BusinessDetail = {
   id: string
@@ -70,6 +71,35 @@ export async function searchBusinesses(query: string): Promise<BusinessSummary[]
     include: { category: true },
     orderBy: { name: 'asc' },
     take: 20,
+  })
+
+  const ratings = await getRatingsForBusinesses(rows.map((row) => row.id))
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    logoUrl: row.logoUrl,
+    categoryName: row.category.name,
+    city: row.city,
+    state: row.state,
+    rating: ratings.get(row.id) ?? null,
+  }))
+}
+
+export async function listBusinesses(input: {
+  city?: CityCookie | null
+  categoryId?: string
+}): Promise<BusinessSummary[]> {
+  const rows = await prisma.business.findMany({
+    where: {
+      status: 'ACTIVE',
+      owner: { blocked: false },
+      ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+      ...(input.city ? { city: input.city.name, state: input.city.state } : {}),
+    },
+    include: { category: true },
+    orderBy: { name: 'asc' },
   })
 
   const ratings = await getRatingsForBusinesses(rows.map((row) => row.id))

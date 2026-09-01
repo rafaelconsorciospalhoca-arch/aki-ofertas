@@ -17,7 +17,12 @@ export default async function AdminUsuariosPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-neutral-900">Usuários</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-neutral-900">Usuários</h1>
+        <Link href="/admin/usuarios/novo" className="rounded-lg bg-brand-green px-4 py-2 text-sm font-bold text-white">
+          + Novo usuário
+        </Link>
+      </div>
 
       <form method="GET" className="flex gap-2">
         <input

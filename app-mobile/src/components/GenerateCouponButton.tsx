@@ -9,7 +9,15 @@ import { ApiError } from '@/api/client'
 
 const PHONE_REQUIRED_MESSAGE = 'Informe seu telefone para resgatar o cupom.'
 
-export function GenerateCouponButton({ offerId, icon }: { offerId: string; icon?: ReactNode }) {
+export function GenerateCouponButton({
+  offerId,
+  icon,
+  variant = 'primary',
+}: {
+  offerId: string
+  icon?: ReactNode
+  variant?: 'primary' | 'secondary'
+}) {
   const { token, authedFetch } = useAuth()
   const queryClient = useQueryClient()
   const [code, setCode] = useState<string | null>(null)
@@ -90,16 +98,22 @@ export function GenerateCouponButton({ offerId, icon }: { offerId: string; icon?
     )
   }
 
+  const isSecondary = variant === 'secondary'
+
   return (
     <View>
       {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={styles.button} onPress={handlePress} disabled={pending}>
+      <Pressable
+        style={[styles.button, isSecondary && styles.buttonSecondary]}
+        onPress={handlePress}
+        disabled={pending}
+      >
         {pending ? (
-          <ActivityIndicator color={colors.white} />
+          <ActivityIndicator color={isSecondary ? colors.green : colors.white} />
         ) : (
           <>
             {icon}
-            <Text style={styles.buttonText}>Usar cupom</Text>
+            <Text style={[styles.buttonText, isSecondary && styles.buttonTextSecondary]}>Usar cupom</Text>
           </>
         )}
       </Pressable>
@@ -118,6 +132,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  buttonSecondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.green },
+  buttonTextSecondary: { color: colors.green },
   error: { color: colors.red, fontSize: 13, textAlign: 'center', marginBottom: 8 },
   codeBox: { backgroundColor: '#E9F9EF', borderRadius: 12, padding: 16, alignItems: 'center' },
   codeLabel: { fontSize: 12, color: colors.neutral500 },

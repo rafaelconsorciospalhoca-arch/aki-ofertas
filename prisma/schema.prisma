@@ -42,6 +42,15 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  FOOD_VOUCHER
+  MEAL_VOUCHER
+  CASH
+}
+
 enum OfferOptionGroupType {
   SINGLE
   MULTIPLE
@@ -128,6 +137,14 @@ model Business {
   asaasCustomerId String?
   commissionOverrideEnabled Boolean @default(false)
   commissionOverridePercent Int?
+  // Merchant-controlled: when false, the customer app hides "Como chegar"
+  // on this business's offers since there's no point navigating there for
+  // pickup if the business only fulfills via delivery.
+  acceptsPickup Boolean @default(true)
+  // Which payment methods the customer can choose from at delivery checkout
+  // (src/app/comerciante/entrega). Empty means the merchant hasn't set this
+  // up yet — the checkout falls back to showing every method in that case.
+  acceptedPaymentMethods PaymentMethod[] @default([])
   suspendedReason String?
   createdAt    DateTime       @default(now())
   slug         String         @unique
@@ -214,11 +231,15 @@ model BusinessHours {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
+  // 0 = Sunday .. 6 = Saturday, matching JS Date#getDay().
   weekday    Int
+  // "HH:MM" 24h, null while unset. closesAt <= opensAt means the window
+  // crosses midnight (e.g. 18:00-02:00), handled in isWithinBusinessHours.
   opensAt    String?
   closesAt   String?
   closed     Boolean  @default(false)
 
+  @@unique([businessId, weekday])
   @@map("business_hours")
 }
 
@@ -239,6 +260,9 @@ model Offer {
   endDate           DateTime
   isFlash           Boolean     @default(false)
   deliveryEnabled   Boolean     @default(false)
+  // Manually toggled by the platform admin (src/app/admin/ofertas) to control
+  // which offers appear in the home-screen featured carousel.
+  featured          Boolean     @default(false)
   // Set when the merchant already validates coupons in their own external
   // system: every redemption of this offer shows this same code instead of
   // a freshly generated one, so it matches what their system expects.
@@ -300,6 +324,10 @@ model Order {
   state        String
   zip          String?
   notes        String?
+  paymentMethod PaymentMethod @default(CASH)
+  // Only meaningful when paymentMethod is CASH: how much cash the customer
+  // will hand over, so the merchant knows how much change to bring.
+  changeForCents Int?
   status       OrderStatus @default(PENDING)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

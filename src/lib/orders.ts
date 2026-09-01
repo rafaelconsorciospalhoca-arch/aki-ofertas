@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
-import type { OrderStatus } from '@prisma/client'
+import type { OrderStatus, PaymentMethod } from '@prisma/client'
 import { sendNewOrderEmail, sendOrderStatusEmail } from '@/lib/email'
+import { getBusinessHours, isWithinBusinessHours } from '@/lib/business-hours'
 
 export type OrderRow = {
   id: string
@@ -16,6 +17,8 @@ export type OrderRow = {
   notes: string | null
   selectedOptions: string | null
   optionsFeeCents: number | null
+  paymentMethod: PaymentMethod
+  changeForCents: number | null
   status: OrderStatus
   createdAt: Date
   offerId: string
@@ -48,6 +51,8 @@ function toOrderRow(row: {
   notes: string | null
   selectedOptions: string | null
   optionsFeeCents: number | null
+  paymentMethod: PaymentMethod
+  changeForCents: number | null
   status: OrderStatus
   createdAt: Date
   offerId: string
@@ -70,6 +75,8 @@ function toOrderRow(row: {
     notes: row.notes,
     selectedOptions: row.selectedOptions,
     optionsFeeCents: row.optionsFeeCents,
+    paymentMethod: row.paymentMethod,
+    changeForCents: row.changeForCents,
     status: row.status,
     createdAt: row.createdAt,
     offerId: row.offerId,
@@ -121,13 +128,18 @@ export type CreateOrderInput = {
   zip?: string
   notes?: string
   selectedChoiceIds?: string[]
+  paymentMethod: PaymentMethod
+  changeForCents?: number
 }
+
+const ALL_PAYMENT_METHODS: PaymentMethod[] = ['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'FOOD_VOUCHER', 'MEAL_VOUCHER', 'CASH']
 
 export type CreateOrderResult = { ok: true; orderId: string } | { ok: false; error: string }
 
 const OFFER_NOT_AVAILABLE = 'Oferta não encontrada.'
 const DELIVERY_NOT_AVAILABLE = 'Esta oferta não aceita entrega.'
 const ZONE_NOT_AVAILABLE = 'Bairro inválido ou indisponível.'
+const CLOSED_NOW = 'Esta loja está fechada no momento. Confira o horário de atendimento.'
 
 export async function createOrderForUser(userId: string, input: CreateOrderInput): Promise<CreateOrderResult> {
   const offer = await prisma.offer.findUnique({
@@ -139,6 +151,7 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
           name: true,
           status: true,
           email: true,
+          acceptedPaymentMethods: true,
           owner: { select: { blocked: true, email: true } },
         },
       },
@@ -154,6 +167,11 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
   }
   if (!offer.deliveryEnabled) {
     return { ok: false, error: DELIVERY_NOT_AVAILABLE }
+  }
+
+  const businessHours = await getBusinessHours(offer.business.id)
+  if (!isWithinBusinessHours(businessHours)) {
+    return { ok: false, error: CLOSED_NOW }
   }
 
   const zone = await prisma.deliveryZone.findFirst({
@@ -194,6 +212,19 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
     return { ok: false, error: OFFER_NOT_AVAILABLE }
   }
 
+  // Empty acceptedPaymentMethods means the merchant hasn't configured this
+  // yet — fall back to accepting anything rather than blocking checkout.
+  const acceptedMethods =
+    offer.business.acceptedPaymentMethods.length > 0 ? offer.business.acceptedPaymentMethods : ALL_PAYMENT_METHODS
+  if (!acceptedMethods.includes(input.paymentMethod)) {
+    return { ok: false, error: 'Forma de pagamento não aceita por esta loja.' }
+  }
+  if (input.paymentMethod === 'CASH' && input.changeForCents !== undefined) {
+    if (!Number.isInteger(input.changeForCents) || input.changeForCents <= 0) {
+      return { ok: false, error: 'Valor de troco inválido.' }
+    }
+  }
+
   const order = await prisma.order.create({
     data: {
       userId,
@@ -211,6 +242,8 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
       notes: input.notes || null,
       selectedOptions: selectedOptionsSummary,
       optionsFeeCents: offer.optionGroups.length > 0 ? optionsFeeCents : null,
+      paymentMethod: input.paymentMethod,
+      changeForCents: input.paymentMethod === 'CASH' ? input.changeForCents ?? null : null,
     },
     include: { user: { select: { name: true } } },
   })
@@ -227,6 +260,19 @@ export async function createOrderForUser(userId: string, input: CreateOrderInput
   }
 
   return { ok: true, orderId: order.id }
+}
+
+export async function deleteOrderForBusiness(
+  businessId: string,
+  orderId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const order = await prisma.order.findFirst({ where: { id: orderId, businessId } })
+  if (!order) {
+    return { ok: false, error: 'Pedido não encontrado.' }
+  }
+
+  await prisma.order.delete({ where: { id: orderId } })
+  return { ok: true }
 }
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
@@ -269,4 +315,35 @@ export async function updateOrderStatusForBusiness(
   }).catch((err) => console.error('Failed to send order status email', err))
 
   return { ok: true }
+}
+
+
+export type OrderStats = {
+  totalOrders: number
+  byStatus: Record<OrderStatus, number>
+  deliveredRevenueCents: number
+}
+
+// "Revenue" only counts DELIVERED orders — pending/preparing orders haven't
+// actually paid out yet, and cancelled ones never will.
+export function summarizeOrders(orders: OrderRow[]): OrderStats {
+  const byStatus: Record<OrderStatus, number> = {
+    PENDING: 0,
+    CONFIRMED: 0,
+    PREPARING: 0,
+    OUT_FOR_DELIVERY: 0,
+    DELIVERED: 0,
+    CANCELLED: 0,
+  }
+  let deliveredRevenueCents = 0
+
+  for (const order of orders) {
+    byStatus[order.status]++
+    if (order.status === 'DELIVERED') {
+      deliveredRevenueCents +=
+        order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0) + (order.optionsFeeCents ?? 0)
+    }
+  }
+
+  return { totalOrders: orders.length, byStatus, deliveredRevenueCents }
 }

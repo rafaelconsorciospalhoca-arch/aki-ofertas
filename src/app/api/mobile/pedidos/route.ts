@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireMobileUser } from '@/lib/mobile-session'
 import { createOrderForUser, getOrdersForUser } from '@/lib/orders'
+import { PaymentMethod } from '@prisma/client'
 
 export async function GET(request: Request) {
   const auth = await requireMobileUser(request)
@@ -23,6 +24,8 @@ const bodySchema = z.object({
   zip: z.string().optional(),
   notes: z.string().optional(),
   selectedChoiceIds: z.array(z.string()).optional(),
+  paymentMethod: z.nativeEnum(PaymentMethod),
+  changeForCents: z.number().int().positive().optional(),
 })
 
 export async function POST(request: Request) {

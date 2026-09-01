@@ -33,6 +33,9 @@ export default function OfertaScreen() {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`)
   }
 
+  const hasDelivery = offer.deliveryEnabled && offer.deliveryZones.length > 0
+  const deliveryOnly = hasDelivery && !offer.business.acceptsPickup
+
   return (
     <ScrollView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -69,18 +72,32 @@ export default function OfertaScreen() {
         </View>
         <Text style={styles.validUntil}>Válido até {formatDate(offer.endDate)}</Text>
         <View style={styles.buttonWrapper}>
-          <GenerateCouponButton offerId={offer.id} icon={<Ticket size={18} color={colors.white} />} />
-          {offer.deliveryEnabled && offer.deliveryZones.length > 0 && (
-            <Pressable style={styles.deliveryButton} onPress={() => router.push(`/pedido/${offer.slug}`)}>
-              <Bike size={18} color={colors.green} />
-              <Text style={styles.deliveryButtonText}>Pedir com entrega</Text>
-            </Pressable>
+          {deliveryOnly ? (
+            <>
+              <Pressable style={styles.deliveryButtonPrimary} onPress={() => router.push(`/pedido/${offer.slug}`)}>
+                <Bike size={18} color={colors.white} />
+                <Text style={styles.deliveryButtonPrimaryText}>Pedir com entrega</Text>
+              </Pressable>
+              <GenerateCouponButton offerId={offer.id} icon={<Ticket size={18} color={colors.green} />} variant="secondary" />
+            </>
+          ) : (
+            <>
+              <GenerateCouponButton offerId={offer.id} icon={<Ticket size={18} color={colors.white} />} />
+              {hasDelivery && (
+                <Pressable style={styles.deliveryButton} onPress={() => router.push(`/pedido/${offer.slug}`)}>
+                  <Bike size={18} color={colors.green} />
+                  <Text style={styles.deliveryButtonText}>Pedir com entrega</Text>
+                </Pressable>
+              )}
+            </>
           )}
           <View style={styles.secondaryRow}>
-            <Pressable style={styles.secondaryButton} onPress={handleDirections}>
-              <Navigation size={16} color={colors.neutral900} />
-              <Text style={styles.secondaryText}>Como chegar</Text>
-            </Pressable>
+            {offer.business.acceptsPickup && (
+              <Pressable style={styles.secondaryButton} onPress={handleDirections}>
+                <Navigation size={16} color={colors.neutral900} />
+                <Text style={styles.secondaryText}>Como chegar</Text>
+              </Pressable>
+            )}
             <Pressable style={styles.secondaryButton} onPress={handleShare}>
               <Share2 size={16} color={colors.neutral900} />
               <Text style={styles.secondaryText}>Compartilhar</Text>
@@ -150,6 +167,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deliveryButtonText: { color: colors.green, fontWeight: '700', fontSize: 14 },
+  deliveryButtonPrimary: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: colors.green,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryButtonPrimaryText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   secondaryRow: { flexDirection: 'row', gap: 10 },
   secondaryButton: {
     flex: 1,

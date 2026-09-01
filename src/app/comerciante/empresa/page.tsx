@@ -36,6 +36,7 @@ export default async function ComercianteEmpresaPage() {
           zip: business.zip ?? '',
           logoUrl: business.logoUrl ?? '',
           coverUrl: business.coverUrl ?? '',
+          acceptsPickup: business.acceptsPickup,
         }}
       />
     </div>

@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { getBusinessForOwner } from '@/lib/merchant'
 import { DashboardShell } from '@/components/layout/DashboardShell'
 import { MerchantAccessGate } from '@/components/merchant/MerchantAccessGate'
+import { OrderNotificationWatcher } from '@/components/merchant/OrderNotificationWatcher'
 
 export default async function ComercianteLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -11,6 +12,7 @@ export default async function ComercianteLayout({ children }: { children: React.
   return (
     <DashboardShell area="comerciante">
       <MerchantAccessGate suspended={Boolean(suspended)} suspendedReason={business?.suspendedReason ?? null}>
+        {!suspended && <OrderNotificationWatcher />}
         {children}
       </MerchantAccessGate>
     </DashboardShell>

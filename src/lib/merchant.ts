@@ -27,6 +27,14 @@ export async function getMenuItemsForOwner(businessId: string) {
   })
 }
 
+export async function getBusinessHoursForOwner(businessId: string) {
+  return prisma.businessHours.findMany({
+    where: { businessId },
+    select: { weekday: true, opensAt: true, closesAt: true, closed: true },
+    orderBy: { weekday: 'asc' },
+  })
+}
+
 export async function getDeliveryZonesForOwner(businessId: string) {
   return prisma.deliveryZone.findMany({
     where: { businessId },

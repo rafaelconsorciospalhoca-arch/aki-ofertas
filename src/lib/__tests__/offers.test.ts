@@ -14,29 +14,31 @@ const farBusiness = { id: 'biz-2', name: 'Distant Pizza', slug: 'distant-pizza',
 const pendingBusiness = { id: 'biz-3', name: 'Pending Sushi', slug: 'pending-sushi', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'PENDING', owner: { blocked: false }, serviceCities: [{ name: 'Marmeleiro', state: 'PR' }] }
 const blockedOwnerBusiness = { id: 'biz-4', name: 'Blocked Bakery', slug: 'blocked-bakery', city: 'Marmeleiro', state: 'PR', lat: -25.9006, lng: -53.0489, status: 'ACTIVE', owner: { blocked: true }, serviceCities: [{ name: 'Marmeleiro', state: 'PR' }] }
 
+const category = { name: 'Lojas' }
+
 const nearOffer = {
   id: 'offer-1', slug: 'combo-burguer', title: 'Combo Burguer', imageUrl: null,
   originalPrice: 4290, discountPrice: 2990, discountPercent: 30, createdAt: new Date('2026-01-01'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: bigBurger,
+  business: bigBurger, category,
 }
 const farOffer = {
   id: 'offer-2', slug: 'pizza-grande', title: 'Pizza Grande', imageUrl: null,
   originalPrice: 5990, discountPrice: 4490, discountPercent: 25, createdAt: new Date('2026-01-02'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: farBusiness,
+  business: farBusiness, category,
 }
 const pendingOffer = {
   id: 'offer-3', slug: 'sushi-combo', title: 'Combo Sushi', imageUrl: null,
   originalPrice: 6990, discountPrice: 4990, discountPercent: 28, createdAt: new Date('2026-01-03'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: pendingBusiness,
+  business: pendingBusiness, category,
 }
 const blockedOwnerOffer = {
   id: 'offer-4', slug: 'blocked-bakery-combo', title: 'Combo Padaria', imageUrl: null,
   originalPrice: 3990, discountPrice: 2990, discountPercent: 25, createdAt: new Date('2026-01-04'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: blockedOwnerBusiness,
+  business: blockedOwnerBusiness, category,
 }
 
 const proBusiness = { ...bigBurger, id: 'biz-5', slug: 'pro-business', plan: { priceCents: 19990 } }
@@ -45,13 +47,13 @@ const proOffer = {
   id: 'offer-5', slug: 'oferta-pro', title: 'Oferta Pro', imageUrl: null,
   originalPrice: 2000, discountPrice: 1500, discountPercent: 25, createdAt: new Date('2026-01-05'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: proBusiness,
+  business: proBusiness, category,
 }
 const freeOffer = {
   id: 'offer-6', slug: 'oferta-free', title: 'Oferta Free', imageUrl: null,
   originalPrice: 2000, discountPrice: 1500, discountPercent: 25, createdAt: new Date('2026-01-06'),
   startDate: new Date('2020-01-01'), endDate: new Date('2030-01-01'),
-  business: freeBusiness,
+  business: freeBusiness, category,
 }
 
 const allOffers = [nearOffer, farOffer, pendingOffer, blockedOwnerOffer]
@@ -151,6 +153,7 @@ describe('getFeaturedOffers', () => {
       expect.objectContaining({
         where: {
           status: 'ACTIVE',
+          featured: true,
           business: { status: 'ACTIVE', owner: { blocked: false } },
           startDate: expect.objectContaining({ lte: expect.any(Date) }),
           endDate: expect.objectContaining({ gte: expect.any(Date) }),

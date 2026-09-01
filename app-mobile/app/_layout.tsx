@@ -1,28 +1,26 @@
 import { Stack, router, useSegments } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
-import { getStoredLocation } from '@/storage/location'
+import { LocationProvider, useLocation } from '@/location/LocationContext'
 
 const queryClient = new QueryClient()
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments()
-  const [checked, setChecked] = useState(false)
+  const { location, loading } = useLocation()
 
   useEffect(() => {
-    getStoredLocation().then((location) => {
-      const onOnboarding = segments[0] === 'onboarding'
-      if (!location && !onOnboarding) {
-        router.replace('/onboarding')
-      }
-      setChecked(true)
-    })
-  }, [segments])
+    if (loading) return
+    const onOnboarding = segments[0] === 'onboarding'
+    if (!location && !onOnboarding) {
+      router.replace('/onboarding')
+    }
+  }, [loading, location, segments])
 
-  if (!checked) return null
+  if (loading) return null
   return <>{children}</>
 }
 
@@ -31,12 +29,14 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SafeAreaProvider>
-          <StatusBar style="light" />
-          <OnboardingGate>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </OnboardingGate>
+          <LocationProvider>
+            <StatusBar style="light" />
+            <OnboardingGate>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+            </OnboardingGate>
+          </LocationProvider>
         </SafeAreaProvider>
       </AuthProvider>
     </QueryClientProvider>

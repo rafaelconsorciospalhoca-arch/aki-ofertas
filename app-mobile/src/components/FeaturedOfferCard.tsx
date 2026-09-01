@@ -6,7 +6,7 @@ import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
 import type { OfferListItem } from '@/api/types'
 
-export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
+export function FeaturedOfferCard({ offer, showTag = true }: { offer: OfferListItem; showTag?: boolean }) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/oferta/${offer.slug}`)}>
       <View style={styles.imageWrapper}>
@@ -15,15 +15,20 @@ export function FeaturedOfferCard({ offer }: { offer: OfferListItem }) {
         ) : (
           <View style={styles.imagePlaceholder} />
         )}
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>OFERTA ESPECIAL</Text>
-        </View>
+        {showTag && (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>OFERTA ESPECIAL</Text>
+          </View>
+        )}
         <View style={styles.discountBadge}>
           <Text style={styles.discountText}>-{offer.discountPercent}%</Text>
         </View>
       </View>
       <View style={styles.info}>
-        <Text style={styles.price}>{formatCents(offer.discountPrice)}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.originalPrice}>De {formatCents(offer.originalPrice)}</Text>
+          <Text style={styles.price}>por {formatCents(offer.discountPrice)}</Text>
+        </View>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>{offer.title}</Text>
           {offer.rating && (
@@ -51,7 +56,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  imageWrapper: { width: '100%', height: 170, backgroundColor: colors.neutral100 },
+  imageWrapper: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.neutral100 },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { width: '100%', height: '100%', backgroundColor: colors.neutral100 },
   tag: {
@@ -69,12 +74,14 @@ const styles = StyleSheet.create({
     right: 10,
     top: 10,
     backgroundColor: colors.red,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  discountText: { color: colors.white, fontSize: 14, fontWeight: '800' },
+  discountText: { color: colors.white, fontSize: 20, fontWeight: '800' },
   info: { padding: 12, gap: 2 },
+  priceRow: { flexDirection: 'row', gap: 8, alignItems: 'baseline' },
+  originalPrice: { fontSize: 13, color: colors.neutral400, textDecorationLine: 'line-through' },
   price: { fontSize: 20, fontWeight: '800', color: colors.green },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontSize: 13, color: colors.neutral500, flexShrink: 1 },

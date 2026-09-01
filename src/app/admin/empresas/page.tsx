@@ -31,7 +31,12 @@ export default async function AdminEmpresasPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-neutral-900">Empresas</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-neutral-900">Empresas</h1>
+        <Link href="/admin/empresas/novo" className="rounded-lg bg-brand-green px-4 py-2 text-sm font-bold text-white">
+          + Nova empresa
+        </Link>
+      </div>
 
       <div className="flex gap-2 overflow-x-auto">
         {FILTERS.map((filter) => (

@@ -11,7 +11,7 @@ import { GET as getCidades } from '@/app/api/mobile/cidades/route'
 import { GET as getPerfil, PUT as putPerfil } from '@/app/api/mobile/perfil/route'
 import { POST as postTelefone } from '@/app/api/mobile/perfil/telefone/route'
 import { getFeaturedOffers, getOffersList, getOfferBySlug } from '@/lib/offers'
-import { getBusinessBySlug, searchBusinesses } from '@/lib/businesses'
+import { getBusinessBySlug, searchBusinesses, listBusinesses } from '@/lib/businesses'
 import { getActiveCategories, getActiveCities } from '@/lib/categories'
 import { requireMobileUser } from '@/lib/mobile-session'
 import { prisma } from '@/lib/db'
@@ -21,7 +21,7 @@ vi.mock('@/lib/offers', () => ({
   getOffersList: vi.fn(),
   getOfferBySlug: vi.fn(),
 }))
-vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn(), searchBusinesses: vi.fn() }))
+vi.mock('@/lib/businesses', () => ({ getBusinessBySlug: vi.fn(), searchBusinesses: vi.fn(), listBusinesses: vi.fn() }))
 vi.mock('@/lib/categories', () => ({ getActiveCategories: vi.fn(), getActiveCities: vi.fn() }))
 vi.mock('@/lib/mobile-session', () => ({ requireMobileUser: vi.fn() }))
 vi.mock('@/lib/db', () => ({ prisma: { user: { findUnique: vi.fn(), update: vi.fn() } } }))
@@ -120,10 +120,11 @@ describe('GET /api/mobile/lojas/[slug]', () => {
 describe('GET /api/mobile/lojas', () => {
   afterEach(() => vi.clearAllMocks())
 
-  it('returns an empty list without calling searchBusinesses when q is missing', async () => {
+  it('falls back to listBusinesses without calling searchBusinesses when q is missing', async () => {
+    vi.mocked(listBusinesses).mockResolvedValue([{ id: 'b2' }] as never)
     const response = await getLojasSearch(new Request('https://example.com/api/mobile/lojas'))
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ ok: true, data: [] })
+    expect(await response.json()).toEqual({ ok: true, data: [{ id: 'b2' }] })
     expect(searchBusinesses).not.toHaveBeenCalled()
   })
 

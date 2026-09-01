@@ -7,7 +7,7 @@ import { slugify, randomSlugSuffix } from '@/lib/slug'
 import { auth } from '@/lib/auth'
 import { geocodeAddress } from '@/lib/geocode'
 import { createAsaasCustomer, createAsaasSubscription } from '@/lib/asaas'
-import { getEffectiveCommissionPercent } from '@/lib/commission'
+import { hasCategoryOnlyCommission, DELIVERY_PLAN_NAME, DELIVERY_COMMISSION_PERCENT } from '@/lib/commission'
 
 const signUpMerchantSchema = z.object({
   ownerName: z.string().min(2, 'Informe seu nome.'),
@@ -35,7 +35,7 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
     return { ok: false, error: 'Este e-mail já está cadastrado.' }
   }
 
-  const freePlan = await prisma.plan.findUnique({ where: { name: 'Grátis' } })
+  const freePlan = await prisma.plan.findUnique({ where: { name: DELIVERY_PLAN_NAME } })
   if (!freePlan) {
     return { ok: false, error: 'Não foi possível concluir o cadastro. Tente novamente mais tarde.' }
   }
@@ -80,6 +80,10 @@ export async function signUpMerchant(input: SignUpMerchantInput): Promise<SignUp
         lng: coordinates.lng,
         status: 'PENDING',
         planId: freePlan.id,
+        // Delivery plan = commission billing, not a flat fee: every merchant
+        // starts here paying only a % of what they actually sell via delivery.
+        commissionOverrideEnabled: true,
+        commissionOverridePercent: DELIVERY_COMMISSION_PERCENT,
         slug,
         ...(primaryCity ? { serviceCities: { connect: { id: primaryCity.id } } } : {}),
       },
@@ -107,6 +111,7 @@ const updateBusinessSchema = z.object({
   logoUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
   coverUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
   serviceCityIds: z.array(z.string()).optional(),
+  acceptsPickup: z.boolean().default(true),
 })
 
 type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>
@@ -157,6 +162,7 @@ export async function updateBusiness(input: UpdateBusinessInput): Promise<Update
       zip: parsed.data.zip || null,
       logoUrl: parsed.data.logoUrl || null,
       coverUrl: parsed.data.coverUrl || null,
+      acceptsPickup: parsed.data.acceptsPickup,
       serviceCities: { set: Array.from(serviceCityIds).map((id) => ({ id })) },
     },
   })
@@ -205,7 +211,7 @@ export async function subscribeToPlan(planId: string, document: string): Promise
 
   await prisma.business.update({ where: { id: business.id }, data: { document } })
 
-  if (getEffectiveCommissionPercent(business) !== null) {
+  if (hasCategoryOnlyCommission(business)) {
     await prisma.business.update({ where: { id: business.id }, data: { planId: plan.id } })
     await prisma.subscription.create({ data: { businessId: business.id, planId: plan.id, status: 'ACTIVE' } })
     return { ok: true, invoiceUrl: null }

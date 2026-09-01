@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { updateOrderStatus } from '@/actions/order-actions'
+import { updateOrderStatus, deleteOrder } from '@/actions/order-actions'
 import { centsToReais } from '@/lib/money'
 
 type Order = {
@@ -19,6 +19,8 @@ type Order = {
   notes: string | null
   selectedOptions: string | null
   optionsFeeCents: number | null
+  paymentMethod: string
+  changeForCents: number | null
   status: string
   createdAt: Date
   offerTitle: string
@@ -33,6 +35,15 @@ const STATUS_LABEL: Record<string, string> = {
   OUT_FOR_DELIVERY: 'Saiu para entrega',
   DELIVERED: 'Entregue',
   CANCELLED: 'Cancelado',
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  PIX: 'Pix',
+  CREDIT_CARD: 'Cartão de Crédito',
+  DEBIT_CARD: 'Cartão de Débito',
+  FOOD_VOUCHER: 'Cartão Alimentação',
+  MEAL_VOUCHER: 'Cartão Refeição',
+  CASH: 'Dinheiro',
 }
 
 const NEXT_STATUS: Record<string, { status: string; label: string }[]> = {
@@ -60,24 +71,6 @@ function formatDate(date: Date): string {
   return new Date(date).toLocaleString('pt-BR')
 }
 
-function playNotificationSound() {
-  try {
-    const ctx = new AudioContext()
-    const oscillator = ctx.createOscillator()
-    const gain = ctx.createGain()
-    oscillator.connect(gain)
-    gain.connect(ctx.destination)
-    oscillator.frequency.value = 880
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-    oscillator.start()
-    oscillator.stop(ctx.currentTime + 0.3)
-  } catch {
-    // Autoplay/permissão de áudio pode falhar antes de qualquer interação do
-    // usuário na página — o banner visual já é aviso suficiente nesse caso.
-  }
-}
-
 export function OrderManager({ orders }: { orders: Order[] & { id: string }[] }) {
   const router = useRouter()
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -87,28 +80,21 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
     return () => clearInterval(interval)
   }, [router])
 
-  const seenIds = useRef<Set<string> | null>(null)
-  const [newOrderBanner, setNewOrderBanner] = useState(false)
-
-  useEffect(() => {
-    const currentIds = new Set(orders.map((o) => o.id))
-    if (seenIds.current === null) {
-      seenIds.current = currentIds
-      return
-    }
-    const hasNewOrder = orders.some((o) => !seenIds.current!.has(o.id))
-    if (hasNewOrder) {
-      setNewOrderBanner(true)
-      playNotificationSound()
-      setTimeout(() => setNewOrderBanner(false), 6000)
-    }
-    seenIds.current = currentIds
-  }, [orders])
-
   async function handleStatusChange(orderId: string, status: string) {
     setPendingId(orderId)
     try {
       await updateOrderStatus(orderId, status)
+      router.refresh()
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  async function handleDelete(orderId: string) {
+    if (!window.confirm('Excluir este pedido? Essa ação não pode ser desfeita.')) return
+    setPendingId(orderId)
+    try {
+      await deleteOrder(orderId)
       router.refresh()
     } finally {
       setPendingId(null)
@@ -121,11 +107,6 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
 
   return (
     <div className="flex flex-col gap-3">
-      {newOrderBanner && (
-        <div className="rounded-lg bg-brand-green px-4 py-3 text-sm font-bold text-white">
-          🔔 Novo pedido recebido!
-        </div>
-      )}
       {orders.map((order) => (
         <div key={order.id} className="rounded-xl border border-neutral-200 bg-white p-4">
           <div className="flex items-start justify-between gap-3">
@@ -148,6 +129,12 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
             ) : null}
             <p className="font-bold">
               Total: R$ {centsToReais(order.discountPrice * order.quantity + (order.deliveryFeeCents ?? 0) + (order.optionsFeeCents ?? 0))}
+            </p>
+            <p className="col-span-2 font-bold">
+              Pagamento: {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
+              {order.paymentMethod === 'CASH' && order.changeForCents
+                ? ` (troco para R$ ${centsToReais(order.changeForCents)})`
+                : ''}
             </p>
             <p className="col-span-2">Telefone: {order.phone}</p>
             <p className="col-span-2">
@@ -178,6 +165,14 @@ export function OrderManager({ orders }: { orders: Order[] & { id: string }[] })
             >
               Imprimir
             </Link>
+            <button
+              type="button"
+              disabled={pendingId === order.id}
+              onClick={() => handleDelete(order.id)}
+              className="text-xs font-bold text-red-600 underline disabled:opacity-50"
+            >
+              Excluir
+            </button>
           </div>
         </div>
       ))}

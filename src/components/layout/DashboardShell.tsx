@@ -21,6 +21,8 @@ const NAV_ITEMS: Record<'comerciante' | 'admin', { href: string; label: string }
     { href: '/admin', label: 'Dashboard' },
     { href: '/admin/usuarios', label: 'Usuários' },
     { href: '/admin/empresas', label: 'Empresas' },
+    { href: '/admin/ofertas', label: 'Ofertas' },
+    { href: '/admin/relatorios', label: 'Relatórios' },
     { href: '/admin/categorias', label: 'Categorias' },
     { href: '/admin/cidades', label: 'Cidades' },
     { href: '/admin/planos', label: 'Planos' },
@@ -40,7 +42,7 @@ export function DashboardShell({
 
   return (
     <div className="flex min-h-screen bg-neutral-50">
-      <aside className="w-56 flex-shrink-0 bg-brand-navy p-4 text-white">
+      <aside className="w-56 flex-shrink-0 bg-brand-navy p-4 text-white print:hidden">
         <p className="mb-6 px-2 text-lg font-bold">
           Aki<span className="text-brand-green-light">Ofertas</span>
         </p>
@@ -68,7 +70,7 @@ export function DashboardShell({
           Sair
         </button>
       </aside>
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6 print:w-full print:p-0">{children}</main>
     </div>
   )
 }

@@ -8,6 +8,9 @@ export function useOrders() {
     queryKey: ['pedidos'],
     queryFn: () => authedFetch<OrderRow[]>('/pedidos'),
     enabled: token !== null,
+    // The merchant updates status from their own panel, so the customer's
+    // list needs to notice on its own rather than only on manual refresh.
+    refetchInterval: 30000,
   })
 }
 

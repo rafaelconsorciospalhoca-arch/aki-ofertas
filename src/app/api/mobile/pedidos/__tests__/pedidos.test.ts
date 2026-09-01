@@ -22,6 +22,7 @@ const validBody = {
   deliveryZoneId: 'zone-1',
   city: 'Marmeleiro',
   state: 'PR',
+  paymentMethod: 'PIX',
 }
 
 describe('GET /api/mobile/pedidos', () => {

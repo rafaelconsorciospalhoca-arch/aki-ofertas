@@ -5,6 +5,13 @@ export const OTP_EXPIRY_MINUTES = 5
 export const MAX_OTP_ATTEMPTS = 5
 export const MOBILE_SESSION_DAYS = 60
 
+// A fixed account for App Store / Play Store reviewers: the app has no
+// password login (only email-code, Google or Apple), so a reviewer can't
+// receive a real code in their inbox. This email always accepts this code,
+// bypassing the normal OTP lookup — see confirmar-codigo/route.ts.
+export const REVIEW_ACCOUNT_EMAIL = 'revisor@akiofertas.com.br'
+export const REVIEW_ACCOUNT_CODE = '123456'
+
 export function generateOtpCode(): string {
   // crypto.randomInt, not Math.random: V8's PRNG state is reconstructable from
   // observed outputs, which would make a security code guessable.

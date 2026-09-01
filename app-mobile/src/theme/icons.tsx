@@ -3,6 +3,7 @@ import {
   Tag,
   Heart,
   User,
+  Store,
   Utensils,
   Coffee,
   Scissors,
@@ -28,4 +29,4 @@ export function categoryIcon(name: string): LucideIcon {
   return CATEGORY_ICONS[name] ?? Grid3x3
 }
 
-export const TabIcons = { House, Tag, Heart, User }
+export const TabIcons = { House, Tag, Heart, User, Store }
