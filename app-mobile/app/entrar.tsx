@@ -4,7 +4,6 @@ import { View, Text, Image, TextInput, Pressable, ActivityIndicator, ScrollView,
 import { router, Stack } from 'expo-router'
 import * as Google from 'expo-auth-session/providers/google'
 import * as WebBrowser from 'expo-web-browser'
-import * as AppleAuthentication from 'expo-apple-authentication'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { apiFetch, ApiError } from '@/api/client'
@@ -26,13 +25,6 @@ export default function EntrarScreen() {
   const [needsProfile, setNeedsProfile] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [appleAvailable, setAppleAvailable] = useState(false)
-
-  useEffect(() => {
-    AppleAuthentication.isAvailableAsync()
-      .then(setAppleAvailable)
-      .catch((err) => console.error('AppleAuthentication.isAvailableAsync failed', err))
-  }, [])
 
   // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
   // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
@@ -93,45 +85,6 @@ export default function EntrarScreen() {
       router.back()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível entrar com Google.')
-    } finally {
-      setPending(false)
-    }
-  }
-
-  async function handleAppleSignIn() {
-    setError(null)
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      })
-      if (!credential.identityToken) {
-        setError('A Apple não retornou os dados esperados. Tente novamente.')
-        return
-      }
-      setPending(true)
-      const result = await apiFetch<{ token: string; user: { id: string; name: string; email: string } }>(
-        '/auth/apple',
-        {
-          method: 'POST',
-          body: {
-            idToken: credential.identityToken,
-            // Only non-null the very first time this user signs in — Apple
-            // never sends it again on later logins.
-            fullName: credential.fullName
-              ? { givenName: credential.fullName.givenName ?? undefined, familyName: credential.fullName.familyName ?? undefined }
-              : undefined,
-          },
-        },
-      )
-      await login(result.token, result.user)
-      router.back()
-    } catch (err) {
-      // The user closing Apple's own sheet isn't an error worth surfacing.
-      if (err instanceof Error && err.message.includes('ERR_REQUEST_CANCELED')) return
-      setError(err instanceof ApiError ? err.message : 'Não foi possível entrar com Apple.')
     } finally {
       setPending(false)
     }
@@ -212,16 +165,6 @@ export default function EntrarScreen() {
                 <Text style={styles.dividerText}>OU</Text>
                 <View style={styles.dividerLine} />
               </View>
-
-              {appleAvailable && (
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={12}
-                  style={styles.appleButton}
-                  onPress={handleAppleSignIn}
-                />
-              )}
 
               <Pressable
                 style={[styles.googleButton, !googleConfigured && styles.disabled]}
