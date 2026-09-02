@@ -1,10 +1,15 @@
 // app-mobile/app/entrar.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Image, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet, Linking } from 'react-native'
 import { router, Stack } from 'expo-router'
+import * as Google from 'expo-auth-session/providers/google'
+import * as WebBrowser from 'expo-web-browser'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
 import { apiFetch, ApiError } from '@/api/client'
+import { GoogleIcon } from '@/components/GoogleIcon'
+
+WebBrowser.maybeCompleteAuthSession()
 
 type Step = 'options' | 'form' | 'code'
 
@@ -20,6 +25,70 @@ export default function EntrarScreen() {
   const [needsProfile, setNeedsProfile] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
+  // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
+  // derrubaria a tela inteira (inclusive o fluxo de e-mail + código).
+  const googleConfigured = Boolean(
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  )
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+    // Hardcoded rather than auto-detected: `makeRedirectUri()` derives this from
+    // `window.location` at render time, which is fragile (differs by entry path)
+    // and must match a Google Cloud "Authorized redirect URI" exactly, or Google
+    // rejects the whole request with a generic "invalid request" error.
+    redirectUri: 'https://akiofertas.com.br/app/entrar',
+  })
+
+  useEffect(() => {
+    if (!response) return
+
+    if (response.type === 'success') {
+      // expo-auth-session only fills `response.authentication` when the
+      // response includes an access_token — the id_token-only implicit flow
+      // (what useIdTokenAuthRequest requests) never sets it. The id_token is
+      // in the raw returned params instead.
+      const idToken = response.authentication?.idToken ?? (response.params?.id_token as string | undefined)
+      if (idToken) {
+        handleGoogleToken(idToken)
+      } else {
+        console.error('Google auth succeeded without an idToken', response)
+        setError('O Google não retornou os dados esperados. Tente novamente.')
+      }
+      return
+    }
+    if (response.type === 'error') {
+      console.error('Google auth error', response.error, response.params)
+      setError(response.error?.description || response.error?.message || 'Não foi possível entrar com Google.')
+      return
+    }
+    if (response.type === 'cancel' || response.type === 'dismiss') {
+      setError('Login com Google cancelado.')
+    }
+  }, [response])
+
+  async function handleGoogleToken(idToken: string) {
+    setPending(true)
+    setError(null)
+    try {
+      const result = await apiFetch<{ token: string; user: { id: string; name: string; email: string } }>(
+        '/auth/google',
+        { method: 'POST', body: { idToken } },
+      )
+      await login(result.token, result.user)
+      router.back()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível entrar com Google.')
+    } finally {
+      setPending(false)
+    }
+  }
 
   async function handleRequestCode() {
     setPending(true)
@@ -90,6 +159,30 @@ export default function EntrarScreen() {
               <Pressable style={styles.primaryButton} onPress={handleRequestCode} disabled={pending || !email}>
                 {pending ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
               </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OU</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <Pressable
+                style={[styles.googleButton, !googleConfigured && styles.disabled]}
+                onPress={() => promptAsync()}
+                disabled={!request || pending || !googleConfigured}
+              >
+                {pending ? (
+                  <ActivityIndicator color={colors.green} />
+                ) : (
+                  <>
+                    <GoogleIcon size={18} />
+                    <Text style={styles.googleButtonText}>Entrar com Google</Text>
+                  </>
+                )}
+              </Pressable>
+              {!googleConfigured && (
+                <Text style={styles.hintText}>Entrar com Google ainda não está disponível.</Text>
+              )}
 
               <Pressable style={styles.secondaryButton} onPress={() => setStep('form')}>
                 <Text style={styles.secondaryButtonText}>Criar conta gratuita</Text>
@@ -214,6 +307,21 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: colors.neutral500, textAlign: 'center', marginBottom: 4 },
   error: { color: colors.red, fontSize: 13, textAlign: 'center' },
   disabled: { opacity: 0.4 },
+  googleButton: {
+    backgroundColor: '#EAF7EE',
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  googleButtonText: { color: colors.green, fontWeight: '700', fontSize: 15 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 4 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.neutral200 },
+  dividerText: { fontSize: 12, fontWeight: '700', color: colors.neutral400 },
   primaryButton: { backgroundColor: colors.green, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   secondaryButton: {
