@@ -3,9 +3,13 @@ workflows:
     name: Aki Ofertas — Build de produção (iOS)
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: akiofertas_appstore
     environment:
-      groups:
-        - eas_credentials
+      node: 22
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.akiofertas.app
     triggering:
       events:
         - push
@@ -18,15 +22,30 @@ workflows:
         script: |
           cd app-mobile
           npm ci
-      - name: Build de produção (iOS via EAS)
+      - name: Gerar projeto nativo iOS (Expo prebuild)
         script: |
           cd app-mobile
-          npx eas-cli build --platform ios --profile production --non-interactive
-      - name: Enviar para o TestFlight
+          npx expo prebuild --platform ios --clean
+      - name: Configurar assinatura de código no projeto Xcode
         script: |
           cd app-mobile
-          npx eas-cli submit --platform ios --latest --non-interactive
+          xcode-project use-profiles
+      - name: Numerar o build (obrigatório ser maior que o anterior na Apple)
+        script: |
+          cd app-mobile/ios
+          agvtool new-version -all $(date +%s)
+      - name: Build do .ipa
+        script: |
+          cd app-mobile
+          XCWORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$XCWORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$XCWORKSPACE" --scheme "$SCHEME"
+    artifacts:
+      - app-mobile/build/ios/ipa/*.ipa
     publishing:
       email:
         recipients:
           - rafaelconsorciospalhoca@gmail.com
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
