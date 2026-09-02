@@ -109,7 +109,7 @@ export default function EntrarScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image source={require('../assets/brand/logo.png')} style={styles.logoImage} />
