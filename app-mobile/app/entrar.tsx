@@ -34,19 +34,18 @@ export default function EntrarScreen() {
       .catch((err) => console.error('AppleAuthentication.isAvailableAsync failed', err))
   }, [])
 
-  // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis
-  // abaixo ficam vazias. `useAuthRequest` lança se receber `undefined`, o que
-  // derrubaria a tela inteira (inclusive o fluxo de e-mail + código).
-  const googleConfigured = Boolean(
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
-      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
-      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  )
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ''
+  const googleConfigured = Boolean(googleWebClientId)
 
+  // Como o redirectUri abaixo é fixo em um domínio HTTPS (não o esquema nativo
+  // reverso que o Google normalmente espera de um client iOS/Android), só um
+  // client do tipo "Aplicativo da Web" pode ter esse URI autorizado. Por isso
+  // reaproveitamos o mesmo client Web em todas as plataformas — não existe (e
+  // não é necessário criar) um client iOS/Android separado para este fluxo.
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+    iosClientId: googleWebClientId,
+    androidClientId: googleWebClientId,
+    webClientId: googleWebClientId,
     // Hardcoded rather than auto-detected: `makeRedirectUri()` derives this from
     // `window.location` at render time, which is fragile (differs by entry path)
     // and must match a Google Cloud "Authorized redirect URI" exactly, or Google
