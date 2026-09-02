@@ -29,7 +29,9 @@ export default function EntrarScreen() {
   const [appleAvailable, setAppleAvailable] = useState(false)
 
   useEffect(() => {
-    AppleAuthentication.isAvailableAsync().then(setAppleAvailable)
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch((err) => console.error('AppleAuthentication.isAvailableAsync failed', err))
   }, [])
 
   // Nenhum projeto Google Cloud existe ainda para este app, então as variáveis

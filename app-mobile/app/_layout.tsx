@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
 import { LocationProvider, useLocation } from '@/location/LocationContext'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const queryClient = new QueryClient()
 
@@ -32,9 +33,11 @@ export default function RootLayout() {
           <LocationProvider>
             <StatusBar style="light" />
             <OnboardingGate>
-              <Stack screenOptions={{ headerBackTitle: '' }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
+              <ErrorBoundary>
+                <Stack screenOptions={{ headerBackTitle: '' }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                </Stack>
+              </ErrorBoundary>
             </OnboardingGate>
           </LocationProvider>
         </SafeAreaProvider>
