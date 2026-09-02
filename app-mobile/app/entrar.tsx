@@ -1,6 +1,6 @@
 // app-mobile/app/entrar.tsx
 import { useState, useEffect } from 'react'
-import { View, Text, Image, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet, Linking } from 'react-native'
+import { View, Text, Image, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet, Linking, Platform } from 'react-native'
 import { router, Stack } from 'expo-router'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Google from 'expo-auth-session/providers/google'
@@ -35,22 +35,22 @@ export default function EntrarScreen() {
   }, [])
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ''
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || googleWebClientId
   const googleConfigured = Boolean(googleWebClientId)
 
-  // Como o redirectUri abaixo é fixo em um domínio HTTPS (não o esquema nativo
-  // reverso que o Google normalmente espera de um client iOS/Android), só um
-  // client do tipo "Aplicativo da Web" pode ter esse URI autorizado. Por isso
-  // reaproveitamos o mesmo client Web em todas as plataformas — não existe (e
-  // não é necessário criar) um client iOS/Android separado para este fluxo.
+  // No nativo, o redirect precisa ser um esquema customizado (não HTTPS): o
+  // ASWebAuthenticationSession do iOS só fecha sozinho e volta pro app quando
+  // reconhece esse esquema na URL, sem depender de Universal Links/Associated
+  // Domains configurados no domínio. Um redirect HTTPS comum (o que foi usado
+  // antes) simplesmente carrega a página de verdade e fica parado nela — foi
+  // exatamente o bug relatado. O client OAuth do tipo "iOS" (criado no Google
+  // Cloud especificamente para isso) aceita esse esquema de volta sem precisar
+  // cadastrar URIs de redirecionamento, diferente do client Web.
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    iosClientId: googleWebClientId,
+    iosClientId: googleIosClientId,
     androidClientId: googleWebClientId,
     webClientId: googleWebClientId,
-    // Hardcoded rather than auto-detected: `makeRedirectUri()` derives this from
-    // `window.location` at render time, which is fragile (differs by entry path)
-    // and must match a Google Cloud "Authorized redirect URI" exactly, or Google
-    // rejects the whole request with a generic "invalid request" error.
-    redirectUri: 'https://akiofertas.com.br/app/entrar',
+    redirectUri: Platform.OS === 'web' ? 'https://akiofertas.com.br/app/entrar' : 'akiofertas:/oauthredirect',
   })
 
   useEffect(() => {
