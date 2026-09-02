@@ -7,7 +7,21 @@ import { AuthProvider } from '@/auth/AuthContext'
 import { LocationProvider, useLocation } from '@/location/LocationContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // React Query's default staleTime is 0, so every single screen mount
+      // (including navigating back to a screen you just left) re-fetches
+      // and shows a loading spinner even when the data is seconds old —
+      // that's what read as "the app is slow to open offers/pages" on a
+      // real device (no cold network involved, just needless refetches).
+      // 60s keeps data "fresh" long enough that normal back-and-forth
+      // navigation is instant, while still refetching on a real revisit.
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+    },
+  },
+})
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments()
