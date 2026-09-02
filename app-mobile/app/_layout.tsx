@@ -32,7 +32,7 @@ export default function RootLayout() {
           <LocationProvider>
             <StatusBar style="light" />
             <OnboardingGate>
-              <Stack>
+              <Stack screenOptions={{ headerBackTitle: '' }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
             </OnboardingGate>
