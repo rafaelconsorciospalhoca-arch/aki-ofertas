@@ -6,8 +6,6 @@ workflows:
     environment:
       groups:
         - eas_credentials
-      vars:
-        EXPO_TOKEN: $EXPO_TOKEN
     triggering:
       events:
         - push
@@ -23,6 +21,7 @@ workflows:
       - name: Build de produção (iOS via EAS)
         script: |
           cd app-mobile
+          echo "EXPO_TOKEN length: ${#EXPO_TOKEN}"
           npx eas-cli build --platform ios --profile production --non-interactive
     publishing:
       email:
