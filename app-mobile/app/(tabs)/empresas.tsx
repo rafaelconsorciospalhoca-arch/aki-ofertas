@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '@/theme/colors'
 import { BusinessCard } from '@/components/BusinessCard'
 import { useBusinessDirectory } from '@/api/hooks/useBusinessDirectory'
@@ -24,6 +25,7 @@ function groupAlphabetically(businesses: BusinessSummary[]): Row[] {
 }
 
 export default function EmpresasScreen() {
+  const insets = useSafeAreaInsets()
   const { location } = useLocation()
   const [categoria, setCategoria] = useState<string | undefined>(undefined)
 
@@ -34,7 +36,7 @@ export default function EmpresasScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Empresas</Text>
       </View>
       <FlatList

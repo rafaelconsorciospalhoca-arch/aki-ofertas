@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Pencil, Phone, MapPin, Mail, Package, LogOut, ChevronRight, Check, X } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -15,6 +16,7 @@ function initials(name: string): string {
 }
 
 export default function PerfilScreen() {
+  const insets = useSafeAreaInsets()
   const { token, logout } = useAuth()
   const profile = useProfile()
   const updateProfile = useUpdateProfile()
@@ -26,7 +28,7 @@ export default function PerfilScreen() {
 
   if (!token) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.emptyTitle}>Entre para ver seu perfil</Text>
         <Pressable style={styles.button} onPress={() => router.push('/entrar')}>
           <Text style={styles.buttonText}>Entrar</Text>
@@ -37,7 +39,7 @@ export default function PerfilScreen() {
 
   if (profile.isLoading || !profile.data) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <ActivityIndicator color={colors.green} />
       </View>
     )
@@ -62,7 +64,7 @@ export default function PerfilScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 32 }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials(profile.data.name)}</Text>
         </View>

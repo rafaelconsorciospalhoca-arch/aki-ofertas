@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, Image, TextInput, FlatList, ActivityIndicator, StyleSheet, Pressable } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { FeaturedOfferCard } from '@/components/FeaturedOfferCard'
@@ -33,6 +34,7 @@ type ResultRow = { key: string } & ({ kind: 'offer'; offer: OfferListItem } | { 
 const CAROUSEL_COUNT = 5
 
 export default function InicioScreen() {
+  const insets = useSafeAreaInsets()
   const { location, setLocation } = useLocation()
   const [query, setQuery] = useState('')
   const [showCityPicker, setShowCityPicker] = useState(false)
@@ -86,7 +88,7 @@ export default function InicioScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
-              <View style={styles.navyHeader}>
+              <View style={[styles.navyHeader, { paddingTop: insets.top + 12 }]}>
                 <SearchBar value={query} onChangeText={setQuery} />
               </View>
               {search.isLoading && (
@@ -120,7 +122,7 @@ export default function InicioScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
         <View>
-          <View style={styles.navyHeader}>
+          <View style={[styles.navyHeader, { paddingTop: insets.top + 12 }]}>
             <View style={styles.brandRow}>
               <Image source={require('../../assets/brand/logo.png')} style={styles.logoImage} />
               <View>

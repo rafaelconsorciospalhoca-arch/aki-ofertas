@@ -1,4 +1,5 @@
 import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors } from '@/theme/colors'
 import { OfferCard } from '@/components/OfferCard'
@@ -10,12 +11,13 @@ import type { OfferListItem, BusinessSummary } from '@/api/types'
 type Row = { key: string } & ({ kind: 'offer'; offer: OfferListItem } | { kind: 'business'; business: BusinessSummary })
 
 export default function FavoritosScreen() {
+  const insets = useSafeAreaInsets()
   const { token } = useAuth()
   const favorites = useFavorites()
 
   if (!token) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.emptyTitle}>Entre para ver seus favoritos</Text>
         <Pressable style={styles.button} onPress={() => router.push('/entrar')}>
           <Text style={styles.buttonText}>Entrar</Text>
@@ -33,7 +35,7 @@ export default function FavoritosScreen() {
     <FlatList
       data={rows}
       keyExtractor={(row) => row.key}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingTop: insets.top + 16 }]}
       ListHeaderComponent={<Text style={styles.title}>Favoritos</Text>}
       ListEmptyComponent={
         favorites.isLoading ? (

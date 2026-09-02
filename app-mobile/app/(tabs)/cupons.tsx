@@ -1,4 +1,5 @@
 import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import QRCode from 'react-native-qrcode-svg'
 import { colors } from '@/theme/colors'
@@ -13,12 +14,13 @@ function formatDate(iso: string): string {
 }
 
 export default function CuponsScreen() {
+  const insets = useSafeAreaInsets()
   const { token } = useAuth()
   const coupons = useCoupons()
 
   if (!token) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.emptyTitle}>Entre para ver seus cupons</Text>
         <Pressable style={styles.button} onPress={() => router.push('/entrar')}>
           <Text style={styles.buttonText}>Entrar</Text>
@@ -31,7 +33,7 @@ export default function CuponsScreen() {
     <FlatList
       data={coupons.data ?? []}
       keyExtractor={(coupon) => coupon.id}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingTop: insets.top + 16 }]}
       ListHeaderComponent={<Text style={styles.title}>Meus cupons</Text>}
       ListEmptyComponent={
         coupons.isLoading ? (
