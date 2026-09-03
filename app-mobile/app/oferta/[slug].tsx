@@ -4,6 +4,7 @@ import { useLocalSearchParams, Stack, router } from 'expo-router'
 import { ArrowLeft, Share2, Navigation, Ticket, Bike } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
+import { optimizedImageUrl } from '@/utils/optimizedImageUrl'
 import { useOfferDetail } from '@/api/hooks/useOfferDetail'
 import { GenerateCouponButton } from '@/components/GenerateCouponButton'
 import { HeartButton } from '@/components/HeartButton'
@@ -42,7 +43,12 @@ export default function OfertaScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={styles.image} cachePolicy="memory-disk" transition={150} />
+          <Image
+            source={{ uri: optimizedImageUrl(offer.imageUrl, 800) }}
+            style={styles.image}
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <View style={styles.imagePlaceholder} />
         )}

@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
+import { optimizedImageUrl } from '@/utils/optimizedImageUrl'
 import type { OfferListItem } from '@/api/types'
 
 export function FeaturedOfferCard({ offer, showTag = true }: { offer: OfferListItem; showTag?: boolean }) {
@@ -12,7 +13,7 @@ export function FeaturedOfferCard({ offer, showTag = true }: { offer: OfferListI
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
           <Image
-            source={{ uri: offer.imageUrl }}
+            source={{ uri: optimizedImageUrl(offer.imageUrl, 400) }}
             style={styles.image}
             contentFit="cover"
             contentPosition="top"

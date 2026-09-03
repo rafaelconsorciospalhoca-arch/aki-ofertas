@@ -2,6 +2,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
 import { Image } from 'expo-image'
 import { colors } from '@/theme/colors'
 import { formatCents } from '@/utils/money'
+import { optimizedImageUrl } from '@/utils/optimizedImageUrl'
 import { useMenu } from '@/api/hooks/useMenu'
 
 export function MenuSection({ slug }: { slug: string }) {
@@ -20,7 +21,12 @@ export function MenuSection({ slug }: { slug: string }) {
       {menu.data.map((item) => (
         <View key={item.id} style={styles.row}>
           {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.image} cachePolicy="memory-disk" transition={150} />
+            <Image
+              source={{ uri: optimizedImageUrl(item.imageUrl, 150) }}
+              style={styles.image}
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={styles.imagePlaceholder} />
           )}

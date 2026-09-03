@@ -9,6 +9,7 @@ import { HeartButton } from '@/components/HeartButton'
 import { StarRating } from '@/components/StarRating'
 import { ReviewsSection } from '@/components/ReviewsSection'
 import { MenuSection } from '@/components/MenuSection'
+import { optimizedImageUrl } from '@/utils/optimizedImageUrl'
 import { useBusinessDetail } from '@/api/hooks/useBusinessDetail'
 import { useReviews } from '@/api/hooks/useReviews'
 
@@ -52,7 +53,12 @@ export default function LojaScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.coverWrapper}>
         {business.coverUrl ? (
-          <Image source={{ uri: business.coverUrl }} style={styles.cover} cachePolicy="memory-disk" transition={150} />
+          <Image
+            source={{ uri: optimizedImageUrl(business.coverUrl, 800) }}
+            style={styles.cover}
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <View style={styles.coverPlaceholder} />
         )}

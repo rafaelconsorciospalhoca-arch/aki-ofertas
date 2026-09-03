@@ -3,13 +3,19 @@ import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
+import { optimizedImageUrl } from '@/utils/optimizedImageUrl'
 import type { BusinessSummary } from '@/api/types'
 
 export function BusinessCard({ business }: { business: BusinessSummary }) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/loja/${business.slug}`)}>
       {business.logoUrl ? (
-        <Image source={{ uri: business.logoUrl }} style={styles.logo} cachePolicy="memory-disk" transition={150} />
+        <Image
+          source={{ uri: optimizedImageUrl(business.logoUrl, 96) }}
+          style={styles.logo}
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={styles.logoPlaceholder} />
       )}
