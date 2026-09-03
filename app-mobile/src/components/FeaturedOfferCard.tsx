@@ -11,7 +11,14 @@ export function FeaturedOfferCard({ offer, showTag = true }: { offer: OfferListI
     <Pressable style={styles.card} onPress={() => router.push(`/oferta/${offer.slug}`)}>
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={styles.image} contentFit="cover" contentPosition="top" />
+          <Image
+            source={{ uri: offer.imageUrl }}
+            style={styles.image}
+            contentFit="cover"
+            contentPosition="top"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <View style={styles.imagePlaceholder} />
         )}

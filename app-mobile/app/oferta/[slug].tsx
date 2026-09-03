@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, ScrollView, ActivityIndicator, StyleSheet, Share, Linking } from 'react-native'
+import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet, Share, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { useLocalSearchParams, Stack, router } from 'expo-router'
 import { ArrowLeft, Share2, Navigation, Ticket, Bike } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -41,7 +42,7 @@ export default function OfertaScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={styles.image} />
+          <Image source={{ uri: offer.imageUrl }} style={styles.image} cachePolicy="memory-disk" transition={150} />
         ) : (
           <View style={styles.imagePlaceholder} />
         )}

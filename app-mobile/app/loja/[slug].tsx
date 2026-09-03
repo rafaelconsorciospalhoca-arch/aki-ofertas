@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, Text, Image, Pressable, FlatList, ActivityIndicator, StyleSheet, Share, Linking } from 'react-native'
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet, Share, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { useLocalSearchParams, Stack, router } from 'expo-router'
 import { ArrowLeft, Share2, Phone, MessageCircle } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -51,7 +52,7 @@ export default function LojaScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.coverWrapper}>
         {business.coverUrl ? (
-          <Image source={{ uri: business.coverUrl }} style={styles.cover} />
+          <Image source={{ uri: business.coverUrl }} style={styles.cover} cachePolicy="memory-disk" transition={150} />
         ) : (
           <View style={styles.coverPlaceholder} />
         )}

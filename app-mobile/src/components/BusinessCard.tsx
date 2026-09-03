@@ -1,4 +1,5 @@
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import { Star } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
@@ -8,7 +9,7 @@ export function BusinessCard({ business }: { business: BusinessSummary }) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/loja/${business.slug}`)}>
       {business.logoUrl ? (
-        <Image source={{ uri: business.logoUrl }} style={styles.logo} />
+        <Image source={{ uri: business.logoUrl }} style={styles.logo} cachePolicy="memory-disk" transition={150} />
       ) : (
         <View style={styles.logoPlaceholder} />
       )}
