@@ -38,19 +38,22 @@ export default function EntrarScreen() {
   const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || googleWebClientId
   const googleConfigured = Boolean(googleWebClientId)
 
-  // No nativo, o redirect precisa ser um esquema customizado (não HTTPS): o
-  // ASWebAuthenticationSession do iOS só fecha sozinho e volta pro app quando
-  // reconhece esse esquema na URL, sem depender de Universal Links/Associated
-  // Domains configurados no domínio. Um redirect HTTPS comum (o que foi usado
-  // antes) simplesmente carrega a página de verdade e fica parado nela — foi
-  // exatamente o bug relatado. O client OAuth do tipo "iOS" (criado no Google
-  // Cloud especificamente para isso) aceita esse esquema de volta sem precisar
-  // cadastrar URIs de redirecionamento, diferente do client Web.
+  // No iOS, o redirect precisa ser o esquema reverso oficial do client ID
+  // (registrado no Info.plist via app.json). Um esquema HTTPS comum fica
+  // parado numa página real em vez de fechar e voltar pro app (não há
+  // Universal Links configurados no domínio); e um esquema customizado
+  // qualquer (ex: "akiofertas:/...") é bloqueado pela política do Google de
+  // segurança para clients OAuth do tipo "iOS/Android" — só o esquema
+  // reverso oficial é aceito.
+  const googleIosRedirectScheme = googleIosClientId
+    ? `com.googleusercontent.apps.${googleIosClientId.split('.apps.googleusercontent.com')[0]}`
+    : 'akiofertas'
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: googleIosClientId,
     androidClientId: googleWebClientId,
     webClientId: googleWebClientId,
-    redirectUri: Platform.OS === 'web' ? 'https://akiofertas.com.br/app/entrar' : 'akiofertas:/oauthredirect',
+    redirectUri:
+      Platform.OS === 'web' ? 'https://akiofertas.com.br/app/entrar' : `${googleIosRedirectScheme}:/oauthredirect`,
   })
 
   useEffect(() => {

@@ -10,7 +10,16 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.akiofertas.app",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.656464832303-uu6qd4l9im93htqfvilntb71hfdlb9ma"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "com.akiofertas.app",
