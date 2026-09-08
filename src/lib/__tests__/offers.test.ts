@@ -109,12 +109,16 @@ describe('getFeaturedOffers', () => {
     vi.clearAllMocks()
   })
 
-  it('sorts by distance ascending when a location is given', async () => {
+  it('excludes offers beyond the default radius when a location is given', async () => {
     vi.mocked(prisma.offer.findMany).mockResolvedValue([farOffer, nearOffer] as never)
 
     const result = await getFeaturedOffers({ location: { lat: -25.9006, lng: -53.0489 }, limit: 10 })
 
-    expect(result.map((o) => o.slug)).toEqual(['combo-burguer', 'pizza-grande'])
+    // farOffer's business (Curitiba) is ~380km away — featured offers used
+    // to ignore distance entirely, so a "highlighted" offer from across the
+    // state would show up for a hyperlocal search. Now it's filtered like
+    // the regular list.
+    expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 
   it('orders by the business plan price, highest first, regardless of location', async () => {
@@ -248,12 +252,16 @@ describe('getOffersList', () => {
     expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 
-  it('keeps all offers when no radius is given, sorted by distance', async () => {
+  it('applies a default 50km radius when a location is given but no radius is specified', async () => {
     vi.mocked(prisma.offer.findMany).mockResolvedValue([farOffer, nearOffer] as never)
 
     const result = await getOffersList({ location: { lat: -25.9006, lng: -53.0489 } })
 
-    expect(result.map((o) => o.slug)).toEqual(['combo-burguer', 'pizza-grande'])
+    // farOffer's business (Curitiba) is ~380km from the search location —
+    // well past the default radius — so only nearOffer survives. Without
+    // this default, a user whose city has no local merchants would see
+    // offers from anywhere in the country instead of an empty state.
+    expect(result.map((o) => o.slug)).toEqual(['combo-burguer'])
   })
 
   it('applies radiusKm: 0 as a real filter instead of disabling filtering (only exact-location matches survive)', async () => {

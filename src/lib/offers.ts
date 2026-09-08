@@ -40,6 +40,13 @@ export type OfferListItem = {
   rating: Rating | null
 }
 
+// A GPS-based query with no explicit radius used to return every active
+// offer/business nationwide, just sorted by distance — someone whose city
+// has no merchants yet would see offers hundreds of km away instead of an
+// empty state. This caps that default case to a sane "actually nearby"
+// range; an explicit `radiusKm` (or a `cidade` name match) still overrides it.
+const DEFAULT_RADIUS_KM = 50
+
 export function toOfferListItem(
   offer: OfferRow,
   business: BusinessRow,
@@ -86,7 +93,12 @@ export async function getFeaturedOffers(input: {
   })
 
   const ratings = await getRatingsForBusinesses(Array.from(new Set(rows.map((row) => row.business.id))))
-  const items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
+  let items = rows.map((row) => toOfferListItem(row, row.business, input.location, ratings.get(row.business.id) ?? null))
+
+  if (input.location && !input.city) {
+    items = items.filter((item) => item.distanceKm !== null && item.distanceKm <= DEFAULT_RADIUS_KM)
+  }
+
   const priceCentsByOfferId = new Map(rows.map((row) => [row.id, row.business.plan?.priceCents ?? 0]))
 
   items.sort((a, b) => {
@@ -175,8 +187,9 @@ export async function getOffersList(input: {
     items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
   }
 
-  if (input.location && input.radiusKm !== undefined) {
-    items = items.filter((item) => item.distanceKm !== null && item.distanceKm <= input.radiusKm!)
+  if (input.location) {
+    const radius = input.radiusKm ?? DEFAULT_RADIUS_KM
+    items = items.filter((item) => item.distanceKm !== null && item.distanceKm <= radius)
   }
 
   // Only boost on the unfiltered home-page list — a merchant who already
