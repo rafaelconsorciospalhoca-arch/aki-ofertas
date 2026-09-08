@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView, StyleSheet, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { Pencil, Phone, MapPin, Mail, Package, LogOut, ChevronRight, Check, X } from 'lucide-react-native'
+import { Pencil, Phone, MapPin, Mail, Package, LogOut, ChevronRight, Check, X, Trash2 } from 'lucide-react-native'
 import { colors } from '@/theme/colors'
 import { useAuth } from '@/auth/AuthContext'
-import { useProfile, useUpdateProfile } from '@/api/hooks/useProfile'
+import { useProfile, useUpdateProfile, useDeleteAccount } from '@/api/hooks/useProfile'
 import { ApiError } from '@/api/client'
 
 function initials(name: string): string {
@@ -20,11 +20,34 @@ export default function PerfilScreen() {
   const { token, logout } = useAuth()
   const profile = useProfile()
   const updateProfile = useUpdateProfile()
+  const deleteAccount = useDeleteAccount()
 
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Excluir conta',
+      'Isso remove sua conta e seus dados (favoritos, avaliações, cupons e pedidos) permanentemente. Essa ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir conta',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount.mutateAsync()
+              await logout()
+            } catch (err) {
+              Alert.alert('Não foi possível excluir', err instanceof ApiError ? err.message : 'Tente novamente.')
+            }
+          },
+        },
+      ],
+    )
+  }
 
   if (!token) {
     return (
@@ -148,6 +171,17 @@ export default function PerfilScreen() {
         <LogOut size={16} color={colors.red} />
         <Text style={styles.logoutText}>Sair da conta</Text>
       </Pressable>
+
+      <Pressable style={styles.deleteButton} onPress={handleDeleteAccount} disabled={deleteAccount.isPending}>
+        {deleteAccount.isPending ? (
+          <ActivityIndicator color={colors.neutral400} />
+        ) : (
+          <>
+            <Trash2 size={14} color={colors.neutral400} />
+            <Text style={styles.deleteText}>Excluir conta</Text>
+          </>
+        )}
+      </Pressable>
     </ScrollView>
   )
 }
@@ -252,4 +286,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   logoutText: { color: colors.red, fontWeight: '700' },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 32,
+  },
+  deleteText: { color: colors.neutral400, fontWeight: '600', fontSize: 13 },
 })

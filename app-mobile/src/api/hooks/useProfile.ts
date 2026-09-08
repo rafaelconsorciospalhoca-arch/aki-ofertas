@@ -23,3 +23,11 @@ export function useUpdateProfile() {
     },
   })
 }
+
+export function useDeleteAccount() {
+  const { authedFetch } = useAuth()
+
+  return useMutation({
+    mutationFn: () => authedFetch<{ ok: true }>('/perfil', { method: 'DELETE' }),
+  })
+}

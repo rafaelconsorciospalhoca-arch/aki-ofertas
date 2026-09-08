@@ -83,15 +83,17 @@ export default function OnboardingScreen() {
         <Text style={styles.cardText}>
           Assim podemos mostrar as melhores ofertas e estabelecimentos perto de você.
         </Text>
+        {/* Apple's guideline 5.1.1(iv): this pre-permission message must always
+            lead into the real system prompt — no button here may bypass it (an
+            "agora não" skip used to jump straight to the manual city picker,
+            which got the app rejected), and the button copy must read as
+            "continue to the request", not as if it already grants access. */}
         <Pressable style={styles.primaryButton} onPress={handleAllowLocation} disabled={requesting}>
           {requesting ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.primaryButtonText}>Ativar localização</Text>
+            <Text style={styles.primaryButtonText}>Continuar</Text>
           )}
-        </Pressable>
-        <Pressable onPress={() => setShowCityPicker(true)}>
-          <Text style={styles.linkText}>Agora não</Text>
         </Pressable>
       </View>
     </View>
@@ -123,7 +125,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
-  linkText: { color: colors.neutral400, fontSize: 13 },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 16, marginTop: 48 },
   cityRow: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.neutral200 },
   cityText: { fontSize: 15 },

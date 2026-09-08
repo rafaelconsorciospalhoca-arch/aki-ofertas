@@ -30,7 +30,7 @@ const FAQ = [
   {
     question: 'Como excluo minha conta?',
     answer:
-      'Envie um e-mail para contato@akiofertas.com.br a partir do endereço cadastrado, pedindo a exclusão. Confirmamos e removemos seus dados em até 5 dias úteis.',
+      'No app, vá em Perfil e toque em "Excluir conta" — a exclusão é imediata e remove seus dados (favoritos, avaliações, cupons e pedidos). Se você tem um negócio cadastrado, envie um e-mail para contato@akiofertas.com.br pedindo a exclusão, pra gente cuidar dos pedidos e ofertas vinculados antes.',
   },
 ]
 

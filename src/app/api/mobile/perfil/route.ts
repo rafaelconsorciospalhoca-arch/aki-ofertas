@@ -40,3 +40,34 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export async function DELETE(request: Request) {
+  const auth = await requireMobileUser(request)
+  if (auth instanceof NextResponse) return auth
+
+  const businessCount = await prisma.business.count({ where: { ownerId: auth.userId } })
+  if (businessCount > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'Sua conta tem um negócio cadastrado. Escreva para contato@akiofertas.com.br pedindo a exclusão, pra gente cuidar dos pedidos e ofertas vinculados antes.',
+      },
+      { status: 400 },
+    )
+  }
+
+  // No cascade delete configured on these relations (by design — an
+  // order shouldn't silently vanish just because the FK allows it), so
+  // remove the user's own dependent rows first, in one transaction.
+  await prisma.$transaction([
+    prisma.favorite.deleteMany({ where: { userId: auth.userId } }),
+    prisma.review.deleteMany({ where: { userId: auth.userId } }),
+    prisma.coupon.deleteMany({ where: { userId: auth.userId } }),
+    prisma.order.deleteMany({ where: { userId: auth.userId } }),
+    prisma.mobileSession.deleteMany({ where: { userId: auth.userId } }),
+    prisma.user.delete({ where: { id: auth.userId } }),
+  ])
+
+  return NextResponse.json({ ok: true })
+}
