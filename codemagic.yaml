@@ -77,7 +77,9 @@ workflows:
       - name: Remover símbolos de debug nativos do release (reduz bastante o .aab)
         script: |
           cd app-mobile
-          sed -i '/Caution! In production/,/signingConfig signingConfigs.debug/ s/signingConfig signingConfigs.debug/signingConfig signingConfigs.debug\n            ndk { debugSymbolLevel "none" }/' android/app/build.gradle
+          # macOS ships BSD sed, not GNU sed — multi-line replacement syntax
+          # differs between them, so use perl (identical on both) instead.
+          perl -i -0pe 's/(\/\/ Caution! In production.*?signingConfig signingConfigs\.debug)/$1\n            ndk { debugSymbolLevel "none" }/s' android/app/build.gradle
       - name: Build do .aab
         script: |
           cd app-mobile/android
