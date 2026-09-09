@@ -80,6 +80,11 @@ workflows:
           # macOS ships BSD sed, not GNU sed — multi-line replacement syntax
           # differs between them, so use perl (identical on both) instead.
           perl -i -0pe 's/(\/\/ Caution! In production.*?signingConfig signingConfigs\.debug)/$1\n            ndk { debugSymbolLevel "none" }/s' android/app/build.gradle
+      - name: Ativar minificação R8 (remove código Java/Kotlin não usado)
+        script: |
+          cd app-mobile
+          echo "android.enableMinifyInReleaseBuilds=true" >> android/gradle.properties
+          echo "android.enableShrinkResourcesInReleaseBuilds=true" >> android/gradle.properties
       - name: Build do .aab
         script: |
           cd app-mobile/android
