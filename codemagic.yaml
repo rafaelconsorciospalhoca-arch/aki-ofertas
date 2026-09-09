@@ -83,8 +83,12 @@ workflows:
       - name: Ativar minificação R8 (remove código Java/Kotlin não usado)
         script: |
           cd app-mobile
-          echo "android.enableMinifyInReleaseBuilds=true" >> android/gradle.properties
-          echo "android.enableShrinkResourcesInReleaseBuilds=true" >> android/gradle.properties
+          # A leading \n guarantees these land on their own line even if the
+          # generated gradle.properties doesn't end with a trailing newline —
+          # without it, the first echo silently glued onto the prior line and
+          # the property was never actually read (build #6: "Removing unused
+          # resources requires unused code shrinking to be turned on").
+          printf '\nandroid.enableMinifyInReleaseBuilds=true\nandroid.enableShrinkResourcesInReleaseBuilds=true\n' >> android/gradle.properties
       - name: Build do .aab
         script: |
           cd app-mobile/android
