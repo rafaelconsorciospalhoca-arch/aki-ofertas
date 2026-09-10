@@ -1,6 +1,6 @@
 import re
 
-path = "app-mobile/android/app/build.gradle"
+path = "android/app/build.gradle"
 s = open(path).read()
 
 s = re.sub(
