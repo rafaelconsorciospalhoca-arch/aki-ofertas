@@ -32,38 +32,7 @@ jobs:
         run: |
           cd app-mobile
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/akiofertas-release.keystore
-          python3 - <<'EOF'
-          import re
-
-          path = "android/app/build.gradle"
-          s = open(path).read()
-
-          s = re.sub(
-              r"(debug\s*\{\s*storeFile file\('debug\.keystore'\)\s*storePassword 'android'\s*keyAlias 'androiddebugkey'\s*keyPassword 'android'\s*\})",
-              r"""\1
-        release {
-            storeFile file('akiofertas-release.keystore')
-            storePassword System.getenv('AKI_RELEASE_STORE_PASSWORD')
-            keyAlias 'akiofertas'
-            keyPassword System.getenv('AKI_RELEASE_STORE_PASSWORD')
-        }""",
-              s,
-              count=1,
-          )
-
-          s = re.sub(
-              r"(// Caution! In production.*?signingConfig signingConfigs)\.debug",
-              r"\1.release\n            ndk { debugSymbolLevel \"none\" }",
-              s,
-              count=1,
-              flags=re.S,
-          )
-
-          assert "akiofertas-release.keystore" in s, "signing block not inserted"
-          assert "signingConfig signingConfigs.release" in s, "release build type not repointed"
-
-          open(path, "w").write(s)
-          EOF
+          python3 ../scripts/patch-android-signing.py
 
       - name: Build do .aab
         env:
