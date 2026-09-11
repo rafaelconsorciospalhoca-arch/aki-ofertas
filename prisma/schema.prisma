@@ -438,6 +438,8 @@ model AppSettings {
   asaasSandboxApiKey    String?
   asaasProductionApiKey String?
   asaasWebhookToken     String?
+  appStoreUrl           String?
+  playStoreUrl          String?
   updatedAt             DateTime @updatedAt
 
   @@map("app_settings")

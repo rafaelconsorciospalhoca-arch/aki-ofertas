@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { AppStoreBadges } from './AppStoreBadges'
 
-export function Hero() {
+export function Hero({
+  appStoreUrl,
+  playStoreUrl,
+}: {
+  appStoreUrl?: string | null
+  playStoreUrl?: string | null
+}) {
   return (
     <section className="bg-brand-navy px-4 py-14 text-white">
       <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 md:items-center md:text-center">
@@ -17,6 +24,7 @@ export function Hero() {
         >
           Ver ofertas perto de mim
         </Link>
+        <AppStoreBadges appStoreUrl={appStoreUrl} playStoreUrl={playStoreUrl} />
       </div>
     </section>
   )

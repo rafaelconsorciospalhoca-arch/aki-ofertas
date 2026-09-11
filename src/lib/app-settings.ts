@@ -6,10 +6,12 @@ export async function getAppSettings(): Promise<AppSettings | null> {
 }
 
 export type UpsertAppSettingsInput = {
-  asaasMode: 'SANDBOX' | 'PRODUCTION'
+  asaasMode?: 'SANDBOX' | 'PRODUCTION'
   asaasSandboxApiKey?: string
   asaasProductionApiKey?: string
   asaasWebhookToken?: string
+  appStoreUrl?: string
+  playStoreUrl?: string
 }
 
 export async function upsertAppSettings(input: UpsertAppSettingsInput): Promise<void> {

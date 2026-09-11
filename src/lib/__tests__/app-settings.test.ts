@@ -53,4 +53,21 @@ describe('upsertAppSettings', () => {
     })
     expect(prisma.appSettings.create).not.toHaveBeenCalled()
   })
+
+  it('saves the app store links independently of the Asaas fields', async () => {
+    vi.mocked(prisma.appSettings.findFirst).mockResolvedValue({ id: 's1' } as never)
+
+    await upsertAppSettings({
+      appStoreUrl: 'https://apps.apple.com/app/id123',
+      playStoreUrl: 'https://play.google.com/store/apps/details?id=com.digitiva.akiofertas',
+    })
+
+    expect(prisma.appSettings.update).toHaveBeenCalledWith({
+      where: { id: 's1' },
+      data: {
+        appStoreUrl: 'https://apps.apple.com/app/id123',
+        playStoreUrl: 'https://play.google.com/store/apps/details?id=com.digitiva.akiofertas',
+      },
+    })
+  })
 })

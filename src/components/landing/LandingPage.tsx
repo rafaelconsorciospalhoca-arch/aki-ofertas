@@ -10,15 +10,19 @@ export function LandingPage({
   categories,
   cities,
   plans,
+  appStoreUrl,
+  playStoreUrl,
 }: {
   categories: { id: string; name: string; icon: string }[]
   cities: { name: string; state: string }[]
   plans: { id: string; name: string; priceCents: number }[]
+  appStoreUrl?: string | null
+  playStoreUrl?: string | null
 }) {
   return (
     <div className="landing-page flex flex-col">
       <LandingHeader />
-      <Hero />
+      <Hero appStoreUrl={appStoreUrl} playStoreUrl={playStoreUrl} />
       <HowItWorks />
       <CategoriesShowcase categories={categories} />
       <CitiesShowcase cities={cities} />

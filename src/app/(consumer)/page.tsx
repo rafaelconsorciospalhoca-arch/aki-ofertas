@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { getActiveCategories, getCitiesWithActiveBusinesses } from '@/lib/categories'
 import { getFeaturedOffers } from '@/lib/offers'
 import { getPaidPlans } from '@/lib/plans'
+import { getAppSettings } from '@/lib/app-settings'
 import { GEO_COOKIE, parseGeoCookie, CITY_COOKIE, parseCityCookie } from '@/lib/location'
 import { CategoryGrid } from '@/components/categories/CategoryGrid'
 import { OfferCard } from '@/components/offers/OfferCard'
@@ -23,15 +24,22 @@ export default async function HomePage({ searchParams }: { searchParams: { erro?
   const accessDenied = searchParams.erro === 'acesso-negado'
 
   if (!location && !city) {
-    const [categories, cities, plans] = await Promise.all([
+    const [categories, cities, plans, settings] = await Promise.all([
       getActiveCategories(),
       getCitiesWithActiveBusinesses(),
       getPaidPlans(),
+      getAppSettings(),
     ])
     return (
       <>
         {accessDenied && <AccessDeniedBanner />}
-        <LandingPage categories={categories} cities={cities} plans={plans} />
+        <LandingPage
+          categories={categories}
+          cities={cities}
+          plans={plans}
+          appStoreUrl={settings?.appStoreUrl}
+          playStoreUrl={settings?.playStoreUrl}
+        />
       </>
     )
   }
