@@ -11,7 +11,7 @@ export function BusinessCard({ business }: { business: BusinessSummary }) {
     <Pressable style={styles.card} onPress={() => router.push(`/loja/${business.slug}`)}>
       {business.logoUrl ? (
         <Image
-          source={{ uri: optimizedImageUrl(business.logoUrl, 96) }}
+          source={optimizedImageUrl(business.logoUrl, 96)}
           style={styles.logo}
           cachePolicy="memory-disk"
           transition={150}

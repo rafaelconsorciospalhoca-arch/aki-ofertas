@@ -22,7 +22,7 @@ export function MenuSection({ slug }: { slug: string }) {
         <View key={item.id} style={styles.row}>
           {item.imageUrl ? (
             <Image
-              source={{ uri: optimizedImageUrl(item.imageUrl, 150) }}
+              source={optimizedImageUrl(item.imageUrl, 150)}
               style={styles.image}
               cachePolicy="memory-disk"
               transition={150}

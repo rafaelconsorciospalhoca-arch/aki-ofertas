@@ -13,7 +13,7 @@ export function OfferCard({ offer }: { offer: OfferListItem }) {
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
           <Image
-            source={{ uri: optimizedImageUrl(offer.imageUrl, 150) }}
+            source={optimizedImageUrl(offer.imageUrl, 150)}
             style={styles.image}
             contentFit="cover"
             contentPosition="top"

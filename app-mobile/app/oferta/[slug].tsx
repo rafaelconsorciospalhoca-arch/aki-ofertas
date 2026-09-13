@@ -44,7 +44,7 @@ export default function OfertaScreen() {
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
           <Image
-            source={{ uri: optimizedImageUrl(offer.imageUrl, 800) }}
+            source={optimizedImageUrl(offer.imageUrl, 800)}
             style={styles.image}
             cachePolicy="memory-disk"
             transition={150}

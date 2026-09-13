@@ -13,7 +13,7 @@ export function FeaturedOfferCard({ offer, showTag = true }: { offer: OfferListI
       <View style={styles.imageWrapper}>
         {offer.imageUrl ? (
           <Image
-            source={{ uri: optimizedImageUrl(offer.imageUrl, 400) }}
+            source={optimizedImageUrl(offer.imageUrl, 400)}
             style={styles.image}
             contentFit="cover"
             contentPosition="top"

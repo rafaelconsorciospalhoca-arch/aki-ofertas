@@ -54,7 +54,7 @@ export default function LojaScreen() {
       <View style={styles.coverWrapper}>
         {business.coverUrl ? (
           <Image
-            source={{ uri: optimizedImageUrl(business.coverUrl, 800) }}
+            source={optimizedImageUrl(business.coverUrl, 800)}
             style={styles.cover}
             cachePolicy="memory-disk"
             transition={150}
